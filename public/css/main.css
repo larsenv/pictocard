@@ -416,6 +416,23 @@ input[type="color"] {
   font-family: 'Consolas', monospace;
 }
 
+/* ── Font preview ────────────────────────────── */
+.font-preview {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--input-text);
+  font-size: 1.15rem;
+  line-height: 1.5;
+  min-height: 44px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: font-family 0.1s;
+}
+
 /* ── Delivery tabs ───────────────────────────── */
 .delivery-tabs {
   display: flex;

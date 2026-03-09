@@ -132,9 +132,10 @@
           <label for="fontFamily">Font</label>
           <select id="fontFamily" name="fontFamily">
             <% fonts.forEach(function(f) { %>
-            <option value="<%= f.family %>"><%= f.name %></option>
+            <option value="<%= f.family %>" data-file="<%= f.file %>"><%= f.name %></option>
             <% }); %>
           </select>
+          <div class="font-preview" id="fontPreview" aria-hidden="true">The quick brown fox 🎉</div>
         </div>
 
         <div class="field field-shrink">
@@ -230,6 +231,56 @@
       if (senderHint) senderHint.textContent = 'Shown on the card.';
     }
   }
+
+  // Font live preview
+  (function () {
+    const fontSelect  = document.getElementById('fontFamily');
+    const fontPreview = document.getElementById('fontPreview');
+    if (!fontSelect || !fontPreview) return;
+
+    // Build a lookup of known safe family->file pairs from server-rendered options
+    const knownFonts = {};
+    for (const opt of fontSelect.options) {
+      const fam  = opt.value;
+      const file = opt.dataset.file || '';
+      // Only allow safe characters: alphanumeric, space, dash, dot, underscore
+      if (/^[\w\- .]+$/.test(fam) && /^[\w\-.]+\.ttf$/i.test(file)) {
+        knownFonts[fam] = file;
+      }
+    }
+
+    // Reuse a single <style> element to avoid accumulating tags
+    const faceStyle = document.createElement('style');
+    faceStyle.id = 'font-face-preview';
+    document.head.appendChild(faceStyle);
+    const renderedFaces = new Set();
+
+    function applyFontPreview() {
+      const family = fontSelect.value;
+      const file   = knownFonts[family];
+      if (!family || !file) return;
+
+      // Append a new @font-face rule only once per family
+      if (!renderedFaces.has(family)) {
+        try {
+          // insertRule is more efficient than rewriting textContent
+          faceStyle.sheet.insertRule(
+            `@font-face { font-family: "${family}"; src: url("/fonts/${file}") format("truetype"); }`,
+            faceStyle.sheet.cssRules.length
+          );
+        } catch (_e) {
+          // Fallback: append to textContent if sheet API unavailable
+          faceStyle.textContent += `@font-face { font-family: "${family}"; src: url("/fonts/${file}") format("truetype"); }\n`;
+        }
+        renderedFaces.add(family);
+      }
+
+      fontPreview.style.fontFamily = `"${family}", sans-serif`;
+    }
+
+    fontSelect.addEventListener('change', applyFontPreview);
+    applyFontPreview(); // Set initial preview
+  }());
 </script>
 </body>
 </html>
