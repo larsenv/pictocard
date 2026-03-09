@@ -6,10 +6,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
-const { rateLimit } = require('../lib/middleware');
 
 let config;
 try {
@@ -32,14 +32,18 @@ const upload = multer({
 
 const PRESETS_DIR = path.join(__dirname, '..', 'public', 'images', 'presets');
 
+// Cache preset images once at startup to avoid repeated FS access on every request
+let cachedPresets = null;
 function getPresetImages() {
+  if (cachedPresets !== null) return cachedPresets;
   try {
-    return fs.readdirSync(PRESETS_DIR)
+    cachedPresets = fs.readdirSync(PRESETS_DIR)
       .filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f))
       .map(f => `/images/presets/${f}`);
   } catch {
-    return [];
+    cachedPresets = [];
   }
+  return cachedPresets;
 }
 
 function generateCode() {
@@ -58,7 +62,14 @@ router.get('/', (req, res) => {
 });
 
 // ── POST /create ─────────────────────────────────────────────────────────────
-router.post('/create', rateLimit({ windowMs: 60_000, max: 5, message: 'Too many card submissions. Please wait a minute.' }), upload.single('cardImage'), async (req, res) => {
+const createLimiter = rateLimit({
+  windowMs: 60_000, // 1 minute
+  max: 5,
+  message: 'Too many card submissions. Please wait a minute.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+router.post('/create', createLimiter, upload.single('cardImage'), async (req, res) => {
   try {
     const {
       recipientEmail,
@@ -106,7 +117,7 @@ router.post('/create', rateLimit({ windowMs: 60_000, max: 5, message: 'Too many 
       return res.redirect('/');
     }
 
-    if (recipientEmail && emailOptOuts.has(recipientEmail)) {
+    if (recipientEmail && emailOptOuts.has(recipientEmail.toLowerCase())) {
       req.session.formError = 'That recipient has opted out of receiving PictoCards.';
       return res.redirect('/');
     }

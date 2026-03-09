@@ -16,7 +16,7 @@ const discordEnabled = config.discord && config.discord.enabled;
 // ── GET /discord ──────────────────────────────────────────────────────────────
 router.get('/', (_req, res) => {
   if (!discordEnabled) {
-    return res.render('discord_disabled');
+    return res.redirect('/?discord_disabled=1');
   }
   // Redirect to Discord OAuth2
   const params = new URLSearchParams({

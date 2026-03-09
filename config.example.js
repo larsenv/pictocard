@@ -20,5 +20,10 @@ module.exports = {
     enabled: false
   },
   sessionSecret: 'change-this-to-a-random-string',
-  verificationCodeExpiry: 10 * 60 * 1000 // 10 minutes in ms
+  verificationCodeExpiry: 10 * 60 * 1000, // 10 minutes in ms
+
+  // Twemoji CDN base URL for emoji images rendered on cards.
+  // Update the version tag to access newer emoji sets.
+  // See https://github.com/twitter/twemoji for available releases.
+  twemojiCdnBase: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72'
 };
