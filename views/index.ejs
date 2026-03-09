@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Send a Greeting Card</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container">
+
+  <% if (success) { %>
+  <div class="alert alert-success">
+    🎉 Your card was sent successfully!
+  </div>
+  <% } %>
+
+  <% if (error) { %>
+  <div class="alert alert-error">
+    <%= error %>
+  </div>
+  <% } %>
+
+  <section class="hero">
+    <h1>Send a PictoCard</h1>
+    <p class="hero-sub">Create a personalised greeting card and deliver it by email — or straight to a Wii via WiiLink.</p>
+  </section>
+
+  <form action="/create" method="POST" enctype="multipart/form-data" class="card-form" id="cardForm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+    <!-- ── Recipient ── -->
+    <fieldset class="form-group">
+      <legend>Who is this for?</legend>
+
+      <div class="field">
+        <label for="recipientEmail">Recipient Email Address</label>
+        <input type="email" id="recipientEmail" name="recipientEmail"
+               placeholder="friend@example.com" autocomplete="off" />
+      </div>
+
+      <div class="field-divider"><span>or</span></div>
+
+      <div class="field">
+        <label for="recipientDiscord">Discord Username</label>
+        <input type="text" id="recipientDiscord" name="recipientDiscord"
+               placeholder="discordusername" autocomplete="off" />
+        <span class="field-hint">The bot must share a server with the recipient.</span>
+      </div>
+    </fieldset>
+
+    <!-- ── Sender ── -->
+    <fieldset class="form-group">
+      <legend>About you</legend>
+
+      <div class="field">
+        <label for="senderName">Your Name <span class="required">*</span></label>
+        <input type="text" id="senderName" name="senderName" required
+               placeholder="Your name" maxlength="80" />
+      </div>
+
+      <div class="field">
+        <label for="senderEmail">Your Email <span class="required">*</span>
+          <span class="field-hint">(used only to send you a verification code)</span>
+        </label>
+        <input type="email" id="senderEmail" name="senderEmail" required
+               placeholder="you@example.com" autocomplete="off" />
+      </div>
+    </fieldset>
+
+    <!-- ── Image ── -->
+    <fieldset class="form-group">
+      <legend>Card Image</legend>
+
+      <div class="field">
+        <label for="cardImage">Upload an Image</label>
+        <input type="file" id="cardImage" name="cardImage"
+               accept="image/jpeg,image/png,image/gif,image/webp" />
+        <span class="field-hint">JPEG, PNG, GIF or WebP — max 10 MB</span>
+      </div>
+
+      <% if (presets && presets.length > 0) { %>
+      <div class="field">
+        <label>Or choose a preset</label>
+        <div class="preset-gallery">
+          <% presets.forEach(function(src) { %>
+          <label class="preset-option">
+            <input type="radio" name="presetImage" value="<%= src %>" />
+            <img src="<%= src %>" alt="Preset" loading="lazy" />
+          </label>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+    </fieldset>
+
+    <!-- ── Message ── -->
+    <fieldset class="form-group">
+      <legend>Your Message</legend>
+
+      <div class="field">
+        <label for="cardText">Message <span class="char-counter" id="charCounter">0 / 500</span></label>
+        <textarea id="cardText" name="cardText" rows="5" maxlength="500"
+                  placeholder="Write your message here…"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="fontFamily">Font</label>
+        <select id="fontFamily" name="fontFamily">
+          <% fonts.forEach(function(f) { %>
+          <option value="<%= f.family %>"><%= f.name %></option>
+          <% }); %>
+        </select>
+      </div>
+    </fieldset>
+
+    <!-- ── Optional extras ── -->
+    <details class="form-group extras">
+      <summary>Optional extras</summary>
+
+      <div class="field">
+        <label for="miiData">Mii Data (Base64)</label>
+        <input type="text" id="miiData" name="miiData"
+               placeholder="Base64-encoded Mii data" autocomplete="off" />
+        <span class="field-hint">Adds your Mii face to the bottom-right of the card.</span>
+      </div>
+    </details>
+
+    <button type="submit" class="btn btn-primary btn-lg">
+      Continue &rarr;
+    </button>
+  </form>
+
+  <!-- ── WiiLink notice ── -->
+  <aside class="wiilink-notice">
+    <h3>📡 Send to a Wii via WiiLink</h3>
+    <p>
+      You can also send PictoCards directly to a Wii! Just add
+      <strong>mail@pictocard.net</strong> as a contact on your Wii's Address Book,
+      then enter that address as the recipient above.
+    </p>
+  </aside>
+
+</main>
+
+<footer class="site-footer">
+  <p>
+    &copy; PictoCard &mdash;
+    <a href="/tos">Terms of Service</a> &middot;
+    <a href="/privacy">Privacy Policy</a> &middot;
+    <a href="/optout">Opt-out</a>
+  </p>
+</footer>
+
+<script>
+  const ta = document.getElementById('cardText');
+  const counter = document.getElementById('charCounter');
+  if (ta && counter) {
+    ta.addEventListener('input', () => {
+      counter.textContent = `${ta.value.length} / 500`;
+    });
+  }
+
+  // Clear the other recipient field when one is filled
+  const emailField = document.getElementById('recipientEmail');
+  const discordField = document.getElementById('recipientDiscord');
+  if (emailField && discordField) {
+    emailField.addEventListener('input', () => { if (emailField.value) discordField.value = ''; });
+    discordField.addEventListener('input', () => { if (discordField.value) emailField.value = ''; });
+  }
+</script>
+</body>
+</html>

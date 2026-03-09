@@ -1,0 +1,36 @@
+{
+  "name": "pictocard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larsenv/pictocard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/larsenv/pictocard/issues"
+  },
+  "homepage": "https://github.com/larsenv/pictocard#readme",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "canvas": "^3.2.1",
+    "discord.js": "^14.25.1",
+    "ejs": "^5.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.2",
+    "sharp": "^0.34.5",
+    "undici": "^7.22.0",
+    "uuid": "^13.0.0"
+  }
+}
