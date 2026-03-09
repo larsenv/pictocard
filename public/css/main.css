@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════
    PictoCard — main.css
-   Discross-inspired dark theme
+   Discross-inspired dark theme + light mode
    ═══════════════════════════════════════════════ */
 
-/* ── Custom properties ──────────────────────────── */
+/* ── Custom properties (dark, the default) ──────── */
 :root {
   --bg:           #1A1A1E;
   --bg-secondary: #222327;
@@ -29,6 +29,31 @@
   --shadow:       0 4px 24px rgba(0,0,0,.45);
   --font:         'Whitney', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                   'Helvetica Neue', Arial, sans-serif;
+  --header-bg:    #111114;
+  --tab-active-bg: #5865f2;
+  --tab-active-text: #fff;
+  --tab-inactive-bg: #2b2d31;
+  --tab-inactive-text: #6C6D76;
+}
+
+/* ── Light mode overrides ───────────────────────── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:           #f5f5f7;
+    --bg-secondary: #ffffff;
+    --bg-elevated:  #e8e8ec;
+    --text:         #1a1a1e;
+    --text-muted:   #555560;
+    --text-faint:   #8888a0;
+    --hr:           #d1d1d6;
+    --input-bg:     #ffffff;
+    --input-border: #c5c5cc;
+    --input-text:   #1a1a1e;
+    --shadow:       0 4px 24px rgba(0,0,0,.12);
+    --header-bg:    #ffffff;
+    --tab-inactive-bg: #e4e4ea;
+    --tab-inactive-text: #555560;
+  }
 }
 
 /* ── Reset / base ───────────────────────────────── */
@@ -90,7 +115,7 @@ code {
 
 /* ── Header ─────────────────────────────────────── */
 .site-header {
-  background: #111114;
+  background: var(--header-bg);
   border-bottom: 1px solid var(--input-border);
   position: sticky;
   top: 0;
@@ -165,7 +190,14 @@ code {
   margin-bottom: 32px;
 }
 .hero h1 { margin-bottom: 8px; }
-.hero-sub { color: var(--text-muted); font-size: 1.05rem; }
+.hero-sub { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 10px; }
+.hero-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 0;
+}
 
 /* ── Buttons ─────────────────────────────────────── */
 .btn {
@@ -353,7 +385,69 @@ textarea { resize: vertical; min-height: 120px; }
   margin-top: 8px;
 }
 
-/* ── Verify / code input ─────────────────────────── */
+/* ── Field layout helpers ─────────────────────── */
+.field-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.field-grow { flex: 1 1 200px; min-width: 0; }
+.field-shrink { flex: 0 0 auto; }
+
+/* ── Color picker ────────────────────────────── */
+.color-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+input[type="color"] {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  cursor: pointer;
+  padding: 2px;
+}
+.color-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: 'Consolas', monospace;
+}
+
+/* ── Delivery tabs ───────────────────────────── */
+.delivery-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+  background: var(--tab-inactive-bg);
+  color: var(--tab-inactive-text);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  text-align: center;
+}
+.tab-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.tab-btn.tab-active {
+  background: var(--tab-active-bg);
+  color: var(--tab-active-text);
+  border-color: var(--accent);
+}
+.tab-panel { /* visible by default, JS toggles display */ }
+
+
 .verify-form { max-width: 360px; }
 .code-input {
   font-size: 2rem !important;

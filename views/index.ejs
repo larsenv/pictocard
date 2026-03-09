@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <%- include('partials/head') %>
-  <title>PictoCard – Send a Greeting Card</title>
+  <title>PictoCard - Send a Greeting Card</title>
 </head>
 <body>
 <%- include('partials/header') %>
@@ -23,29 +23,51 @@
 
   <section class="hero">
     <h1>Send a PictoCard</h1>
-    <p class="hero-sub">Create a personalised greeting card and deliver it by email — or straight to a Wii via WiiLink.</p>
+    <p class="hero-sub">Create a personalized greeting card and deliver it by email - or straight to a Wii via WiiLink.</p>
+    <p class="hero-desc">
+      PictoCard is a simple, no-account-needed service for sending custom image and text greeting cards.
+      Upload any photo, write your message, pick a font and color, then share it with someone special.
+      Inspired by the simplicity of Apple iCards - no bloat, just a card.
+    </p>
   </section>
 
   <form action="/create" method="POST" enctype="multipart/form-data" class="card-form" id="cardForm">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
 
-    <!-- ── Recipient ── -->
+    <!-- ── Recipient (tab switcher) ── -->
     <fieldset class="form-group">
       <legend>Who is this for?</legend>
 
-      <div class="field">
-        <label for="recipientEmail">Recipient Email Address</label>
-        <input type="email" id="recipientEmail" name="recipientEmail"
-               placeholder="friend@example.com" autocomplete="off" />
+      <div class="delivery-tabs">
+        <button type="button" class="tab-btn tab-active" id="tabEmail" onclick="switchTab('email')">
+          ✉️ Send by Email
+        </button>
+        <button type="button" class="tab-btn" id="tabDiscord" onclick="switchTab('discord')">
+          💬 Send via Discord
+        </button>
       </div>
 
-      <div class="field-divider"><span>or</span></div>
+      <div id="panelEmail" class="tab-panel">
+        <div class="field">
+          <label for="recipientEmail">Recipient Email Address</label>
+          <input type="email" id="recipientEmail" name="recipientEmail"
+                 placeholder="friend@example.com" autocomplete="off" />
+        </div>
+      </div>
 
-      <div class="field">
-        <label for="recipientDiscord">Discord Username</label>
-        <input type="text" id="recipientDiscord" name="recipientDiscord"
-               placeholder="discordusername" autocomplete="off" />
-        <span class="field-hint">The bot must share a server with the recipient.</span>
+      <div id="panelDiscord" class="tab-panel" style="display:none">
+        <div class="field">
+          <label for="recipientDiscord">Discord Username</label>
+          <input type="text" id="recipientDiscord" name="recipientDiscord"
+                 placeholder="discordusername" autocomplete="off" />
+          <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them.</span>
+        </div>
+        <div class="field">
+          <label for="discordDisplayName">Your Discord Display Name</label>
+          <input type="text" id="discordDisplayName" name="discordDisplayName"
+                 placeholder="How you want to appear to the recipient" maxlength="80" autocomplete="off" />
+          <span class="field-hint">This name is shown to the recipient when the bot delivers your card.</span>
+        </div>
       </div>
     </fieldset>
 
@@ -53,10 +75,11 @@
     <fieldset class="form-group">
       <legend>About you</legend>
 
-      <div class="field">
+      <div class="field" id="senderNameField">
         <label for="senderName">Your Name <span class="required">*</span></label>
         <input type="text" id="senderName" name="senderName" required
                placeholder="Your name" maxlength="80" />
+        <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
       </div>
 
       <div class="field">
@@ -76,7 +99,7 @@
         <label for="cardImage">Upload an Image</label>
         <input type="file" id="cardImage" name="cardImage"
                accept="image/jpeg,image/png,image/gif,image/webp" />
-        <span class="field-hint">JPEG, PNG, GIF or WebP — max 10 MB</span>
+        <span class="field-hint">JPEG, PNG, GIF or WebP - max 10 MB</span>
       </div>
 
       <% if (presets && presets.length > 0) { %>
@@ -101,16 +124,26 @@
       <div class="field">
         <label for="cardText">Message <span class="char-counter" id="charCounter">0 / 500</span></label>
         <textarea id="cardText" name="cardText" rows="5" maxlength="500"
-                  placeholder="Write your message here…"></textarea>
+                  placeholder="Write your message here..."></textarea>
       </div>
 
-      <div class="field">
-        <label for="fontFamily">Font</label>
-        <select id="fontFamily" name="fontFamily">
-          <% fonts.forEach(function(f) { %>
-          <option value="<%= f.family %>"><%= f.name %></option>
-          <% }); %>
-        </select>
+      <div class="field-row">
+        <div class="field field-grow">
+          <label for="fontFamily">Font</label>
+          <select id="fontFamily" name="fontFamily">
+            <% fonts.forEach(function(f) { %>
+            <option value="<%= f.family %>"><%= f.name %></option>
+            <% }); %>
+          </select>
+        </div>
+
+        <div class="field field-shrink">
+          <label for="textColor">Text Color</label>
+          <div class="color-picker-wrap">
+            <input type="color" id="textColor" name="textColor" value="#111111" />
+            <span class="color-label" id="colorLabel">#111111</span>
+          </div>
+        </div>
       </div>
     </fieldset>
 
@@ -119,10 +152,10 @@
       <summary>Optional extras</summary>
 
       <div class="field">
-        <label for="miiData">Mii Data (Base64)</label>
-        <input type="text" id="miiData" name="miiData"
-               placeholder="Base64-encoded Mii data" autocomplete="off" />
-        <span class="field-hint">Adds your Mii face to the bottom-right of the card.</span>
+        <label for="miiFile">Mii File</label>
+        <input type="file" id="miiFile" name="miiFile"
+               accept=".ffsd,.miibinary,application/octet-stream" />
+        <span class="field-hint">Upload your Mii binary file (.ffsd or .miibinary) to add your Mii face to the bottom-right corner of the card.</span>
       </div>
     </details>
 
@@ -145,7 +178,7 @@
 
 <footer class="site-footer">
   <p>
-    &copy; PictoCard &mdash;
+    &copy; PictoCard -
     <a href="/tos">Terms of Service</a> &middot;
     <a href="/privacy">Privacy Policy</a> &middot;
     <a href="/optout">Opt-out</a>
@@ -153,6 +186,7 @@
 </footer>
 
 <script>
+  // Character counter
   const ta = document.getElementById('cardText');
   const counter = document.getElementById('charCounter');
   if (ta && counter) {
@@ -161,12 +195,40 @@
     });
   }
 
-  // Clear the other recipient field when one is filled
-  const emailField = document.getElementById('recipientEmail');
-  const discordField = document.getElementById('recipientDiscord');
-  if (emailField && discordField) {
-    emailField.addEventListener('input', () => { if (emailField.value) discordField.value = ''; });
-    discordField.addEventListener('input', () => { if (discordField.value) emailField.value = ''; });
+  // Color picker label sync
+  const colorInput = document.getElementById('textColor');
+  const colorLabel = document.getElementById('colorLabel');
+  if (colorInput && colorLabel) {
+    colorInput.addEventListener('input', () => {
+      colorLabel.textContent = colorInput.value;
+    });
+  }
+
+  // Tab switcher
+  function switchTab(tab) {
+    const emailPanel   = document.getElementById('panelEmail');
+    const discordPanel = document.getElementById('panelDiscord');
+    const tabEmail     = document.getElementById('tabEmail');
+    const tabDiscord   = document.getElementById('tabDiscord');
+    const senderHint   = document.getElementById('senderNameHint');
+
+    if (tab === 'email') {
+      emailPanel.style.display   = '';
+      discordPanel.style.display = 'none';
+      tabEmail.classList.add('tab-active');
+      tabDiscord.classList.remove('tab-active');
+      // Clear discord field to prevent accidental submission
+      document.getElementById('recipientDiscord').value = '';
+      if (senderHint) senderHint.textContent = 'Shown on the card and in the email.';
+    } else {
+      emailPanel.style.display   = 'none';
+      discordPanel.style.display = '';
+      tabEmail.classList.remove('tab-active');
+      tabDiscord.classList.add('tab-active');
+      // Clear email field
+      document.getElementById('recipientEmail').value = '';
+      if (senderHint) senderHint.textContent = 'Shown on the card.';
+    }
   }
 </script>
 </body>

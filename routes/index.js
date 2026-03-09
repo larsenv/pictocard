@@ -25,8 +25,15 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    cb(null, allowed.includes(file.mimetype));
+    if (file.fieldname === 'cardImage') {
+      const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      cb(null, allowed.includes(file.mimetype));
+    } else if (file.fieldname === 'miiFile') {
+      // Accept any file for Mii binary data
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
   }
 });
 
@@ -69,18 +76,25 @@ const createLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-router.post('/create', createLimiter, upload.single('cardImage'), async (req, res) => {
+router.post('/create', createLimiter, upload.fields([
+  { name: 'cardImage', maxCount: 1 },
+  { name: 'miiFile', maxCount: 1 }
+]), async (req, res) => {
   try {
     const {
       recipientEmail,
       recipientDiscord,
       senderName,
+      discordDisplayName,
       cardText,
       fontFamily,
-      miiData,
+      textColor,
       presetImage,
       senderEmail
     } = req.body;
+
+    const cardImageFile = req.files && req.files.cardImage && req.files.cardImage[0];
+    const miiFile = req.files && req.files.miiFile && req.files.miiFile[0];
 
     // Basic validation
     if (!senderName || senderName.trim().length === 0) {
@@ -102,8 +116,8 @@ router.post('/create', createLimiter, upload.single('cardImage'), async (req, re
 
     // Image: uploaded file takes priority, then preset
     let imageBuffer = null;
-    if (req.file && req.file.buffer) {
-      imageBuffer = req.file.buffer;
+    if (cardImageFile && cardImageFile.buffer) {
+      imageBuffer = cardImageFile.buffer;
     } else if (presetImage) {
       const safeName = path.basename(presetImage);
       const presetPath = path.join(PRESETS_DIR, safeName);
@@ -125,18 +139,27 @@ router.post('/create', createLimiter, upload.single('cardImage'), async (req, re
     const code = generateCode();
     const cardId = uuidv4();
 
+    // Mii: read from uploaded file buffer, encode to base64 for the API
+    const miiData = miiFile ? miiFile.buffer.toString('base64') : null;
+
+    // For Discord deliveries, prefer the dedicated display name; fall back to senderName
+    const displayName = (recipientDiscord && discordDisplayName && discordDisplayName.trim())
+      ? discordDisplayName.trim()
+      : senderName.trim();
+
     // Store everything needed in session (no disk persistence)
     req.session.pending = {
       cardId,
       code,
       codeExpiry: Date.now() + config.verificationCodeExpiry,
       senderEmail,
-      senderName: senderName.trim(),
+      senderName: displayName,
       recipientEmail: recipientEmail || null,
       recipientDiscord: recipientDiscord || null,
       cardText: (cardText || '').slice(0, 500),
       fontFamily: fontFamily || 'RodinNTLG',
-      miiData: miiData || null,
+      textColor: textColor || '#111111',
+      miiData,
       imageBuffer: imageBuffer.toString('base64')
     };
 
@@ -183,6 +206,7 @@ router.post('/verify', async (req, res) => {
       imageBuffer,
       text: pending.cardText,
       font: pending.fontFamily,
+      textColor: pending.textColor,
       senderName: pending.senderName,
       miiData: pending.miiData,
       includeDate: true
