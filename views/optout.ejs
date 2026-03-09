@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Opt Out</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container container-narrow">
+
+  <section class="hero">
+    <h1>Opt Out</h1>
+    <p class="hero-sub">
+      Enter your email address below to stop receiving PictoCards at that address.
+    </p>
+  </section>
+
+  <% if (success) { %>
+  <div class="alert alert-success">
+    ✅ You have been opted out. You will no longer receive PictoCards at that address.
+  </div>
+  <% } %>
+
+  <% if (error) { %>
+  <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <% if (!success) { %>
+  <form action="/optout" method="POST" class="card-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="field">
+      <label for="email">Your Email Address</label>
+      <input type="email" id="email" name="email" required
+             placeholder="you@example.com"
+             value="<%= email %>" />
+    </div>
+    <button type="submit" class="btn btn-primary">Opt Out</button>
+  </form>
+  <% } %>
+
+  <hr />
+
+  <p class="hint-text">
+    <strong>Discord users:</strong> If you would like to opt out of receiving cards via Discord,
+    use the <code>/optout</code> slash command in any server where the PictoCard bot is present.
+  </p>
+
+</main>
+
+<footer class="site-footer">
+  <p>&copy; PictoCard &mdash; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a></p>
+</footer>
+</body>
+</html>
