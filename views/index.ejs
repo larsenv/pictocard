@@ -311,9 +311,16 @@
 </script>
 
 <script type="module">
-  import QrScanner from '/js/qr-scanner/qr-scanner.min.js';
+  (async () => {
+  let QrScanner;
+  try {
+    const mod = await import('/js/qr-scanner/qr-scanner.min.js');
+    QrScanner = mod.default || mod;
+  } catch (e) {
+    console.error('QrScanner failed to load:', e);
+    return;
+  }
 
-  (() => {
   const miiInput  = document.getElementById('miiFile');
   const miiStatus = document.getElementById('miiQrStatus');
   if (!miiInput || !miiStatus) return;
@@ -322,30 +329,32 @@
     const file = this.files && this.files[0];
     if (!file) { miiStatus.style.display = 'none'; return; }
 
-    if (file.type.startsWith('image/')) {
-      miiStatus.textContent = '🔍 Scanning for Mii QR code…';
-      miiStatus.style.display = '';
-      try {
-        const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
-        const binaryData = result && result.binaryData;
-        if (binaryData && binaryData.length >= 74) { // 74 = minimum Mii binary size (Wii RFLCharData)
-          // Replace the file input with the raw binary bytes so the server
-          // receives Mii binary data directly instead of the QR image.
-          const dt = new DataTransfer();
-          dt.items.add(new File([binaryData], 'mii.bin', { type: 'application/octet-stream' }));
-          miiInput.files = dt.files;
-          miiStatus.textContent = '✅ Mii QR code decoded';
-        } else {
-          miiStatus.textContent = '⚠️ No Mii QR code found in this image';
-        }
-      } catch {
-        miiStatus.textContent = '⚠️ No QR code found in this image';
+    // Try QR scanning for image files or files with no detected MIME type (some
+    // systems don't report a type for unfamiliar binary extensions).
+    const looksLikeImage = file.type.startsWith('image/') || file.type === '';
+    if (!looksLikeImage) { miiStatus.style.display = 'none'; return; }
+
+    miiStatus.textContent = '🔍 Scanning for Mii QR code…';
+    miiStatus.style.display = '';
+    try {
+      const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
+      const binaryData = result && result.binaryData;
+      if (binaryData && binaryData.length >= 74) { // 74 = minimum Mii binary size (Wii RFLCharData)
+        // Replace the file input with the raw binary bytes so the server
+        // receives Mii binary data directly instead of the QR image.
+        const dt = new DataTransfer();
+        dt.items.add(new File([binaryData], 'mii.bin', { type: 'application/octet-stream' }));
+        miiInput.files = dt.files;
+        miiStatus.textContent = '✅ Mii QR code decoded';
+      } else {
+        miiStatus.textContent = '⚠️ No Mii QR code found in this image';
       }
-    } else {
+    } catch {
+      // Not a QR image or scanning failed — keep the file as-is (raw Mii binary)
       miiStatus.style.display = 'none';
     }
   });
-  })();
+  })().catch(e => console.error('Mii QR scanner init error:', e));
 </script>
 </body>
 </html>
