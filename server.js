@@ -29,6 +29,14 @@ const { initBot } = require('./lib/discordBot');
 
 const app = express();
 
+// ── Ultra-early request logger ── must be FIRST so it fires before session/CSRF ──
+app.use((req, _res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    console.log(`[REQUEST] ${req.method} ${req.url} content-type=${req.headers['content-type'] || 'none'}`);
+  }
+  next();
+});
+
 // ── View engine ──────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -60,14 +68,6 @@ app.use(csrf());
 
 // ── Static files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
-
-// ── Request logger (dev diagnostics) ─────────────────────────────────────────
-app.use((req, _res, next) => {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    console.log(`[${req.method}] ${req.url} content-type=${req.headers['content-type'] || 'none'}`);
-  }
-  next();
-});
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/', require('./routes/index'));
