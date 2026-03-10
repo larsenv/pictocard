@@ -15,7 +15,7 @@ let config;
 try {
   config = require('../config');
 } catch {
-  config = require('../config.example');
+  config = require('../config');
 }
 
 // In-memory opt-out set for email addresses (no persistence)
