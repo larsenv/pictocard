@@ -7,10 +7,19 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const Filter = require('bad-words');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
 const { decodeMiiQr } = require('../lib/miiQr');
+const {
+  sendVerificationCodeViaDM,
+  sendConfirmationViaDM,
+  isUserOptedOut: isDiscordUserOptedOut,
+  sendCardToDiscordUser
+} = require('../lib/discordBot');
+
+const profanityFilter = new Filter();
 
 let config;
 try {
@@ -84,9 +93,11 @@ router.post('/create', createLimiter, upload.fields([
 ]), async (req, res) => {
   try {
     const {
+      deliveryMethod,
       recipientEmail,
       recipientDiscord,
       senderName,
+      senderDiscord,
       discordDisplayName,
       cardText,
       fontFamily,
@@ -99,21 +110,36 @@ router.post('/create', createLimiter, upload.fields([
     const miiFile       = req.files && req.files.miiFile   && req.files.miiFile[0];
     const miiQrFile     = req.files && req.files.miiQrFile && req.files.miiQrFile[0];
 
+    const usingDiscord = deliveryMethod === 'discord';
+
     // Basic validation
     if (!senderName || senderName.trim().length === 0) {
       req.session.formError = 'Sender name is required.';
       return res.redirect('/');
     }
-    if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-      req.session.formError = 'A valid sender email is required for verification.';
-      return res.redirect('/');
+
+    // Sender email required only when not using Discord DM for verification
+    const senderDiscordTrimmed = (senderDiscord || '').trim();
+    if (!usingDiscord || !senderDiscordTrimmed) {
+      if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+        req.session.formError = 'A valid sender email is required for verification.';
+        return res.redirect('/');
+      }
     }
+
     if (!recipientEmail && !recipientDiscord) {
       req.session.formError = 'Please enter a recipient email or Discord username.';
       return res.redirect('/');
     }
     if (recipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
       req.session.formError = 'Please enter a valid recipient email address.';
+      return res.redirect('/');
+    }
+
+    // SFW check on card text
+    const textToCheck = (cardText || '').trim();
+    if (textToCheck && profanityFilter.isProfane(textToCheck)) {
+      req.session.formError = 'Please keep your message appropriate.';
       return res.redirect('/');
     }
 
@@ -155,7 +181,7 @@ router.post('/create', createLimiter, upload.fields([
     }
 
     // For Discord deliveries, prefer the dedicated display name; fall back to senderName
-    const displayName = (recipientDiscord && discordDisplayName && discordDisplayName.trim())
+    const displayName = (usingDiscord && discordDisplayName && discordDisplayName.trim())
       ? discordDisplayName.trim()
       : senderName.trim();
 
@@ -164,8 +190,10 @@ router.post('/create', createLimiter, upload.fields([
       cardId,
       code,
       codeExpiry: Date.now() + config.verificationCodeExpiry,
-      senderEmail,
+      senderEmail: senderEmail || null,
       senderName: displayName,
+      senderDiscord: senderDiscordTrimmed || null,
+      verifyViaDiscord: usingDiscord && !!senderDiscordTrimmed,
       recipientEmail: recipientEmail || null,
       recipientDiscord: recipientDiscord || null,
       cardText: (cardText || '').slice(0, 500),
@@ -175,7 +203,18 @@ router.post('/create', createLimiter, upload.fields([
       imageBuffer: imageBuffer.toString('base64')
     };
 
-    await sendVerificationCode(senderEmail, code, senderName.trim());
+    // Send verification code via Discord DM or email
+    if (usingDiscord && senderDiscordTrimmed) {
+      const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code);
+      if (!dmResult.success) {
+        delete req.session.pending;
+        req.session.formError = `Could not send verification code via Discord: ${dmResult.error}`;
+        return res.redirect('/');
+      }
+    } else {
+      await sendVerificationCode(senderEmail, code, senderName.trim());
+    }
+
     res.redirect('/verify');
   } catch (err) {
     console.error('[POST /create]', err);
@@ -187,7 +226,13 @@ router.post('/create', createLimiter, upload.fields([
 // ── GET /verify ──────────────────────────────────────────────────────────────
 router.get('/verify', (req, res) => {
   if (!req.session.pending) return res.redirect('/');
-  res.render('verify', { error: null, email: req.session.pending.senderEmail });
+  const { senderEmail, verifyViaDiscord, senderDiscord } = req.session.pending;
+  res.render('verify', {
+    error: null,
+    email: senderEmail,
+    verifyViaDiscord: !!verifyViaDiscord,
+    discordUsername: senderDiscord || null
+  });
 });
 
 // ── POST /verify ─────────────────────────────────────────────────────────────
@@ -201,14 +246,18 @@ router.post('/verify', async (req, res) => {
     delete req.session.pending;
     return res.render('verify', {
       error: 'Verification code expired. Please start over.',
-      email: pending.senderEmail
+      email: pending.senderEmail,
+      verifyViaDiscord: !!pending.verifyViaDiscord,
+      discordUsername: pending.senderDiscord || null
     });
   }
 
   if (!code || code.trim() !== pending.code) {
     return res.render('verify', {
       error: 'Incorrect code. Please try again.',
-      email: pending.senderEmail
+      email: pending.senderEmail,
+      verifyViaDiscord: !!pending.verifyViaDiscord,
+      discordUsername: pending.senderDiscord || null
     });
   }
 
@@ -241,7 +290,9 @@ router.post('/verify', async (req, res) => {
     console.error('[POST /verify]', err);
     res.render('verify', {
       error: 'Failed to generate card. Please try again.',
-      email: pending.senderEmail
+      email: pending.senderEmail,
+      verifyViaDiscord: !!pending.verifyViaDiscord,
+      discordUsername: pending.senderDiscord || null
     });
   }
 });
@@ -255,9 +306,8 @@ router.post('/send', async (req, res) => {
     const cardBuffer = Buffer.from(pending.generatedCard, 'base64');
 
     if (pending.recipientDiscord) {
-      const { sendCardToDiscordUser, isUserOptedOut } = require('../lib/discordBot');
       const username = pending.recipientDiscord.trim();
-      if (isUserOptedOut(username)) {
+      if (isDiscordUserOptedOut(username)) {
         req.session.formError = 'That Discord user has opted out of receiving PictoCards.';
         delete req.session.pending;
         return res.redirect('/');
@@ -277,6 +327,11 @@ router.post('/send', async (req, res) => {
           cardText: pending.cardText,
           sendError: result.error
         });
+      }
+      // Send confirmation DM to sender if they provided their Discord username
+      if (pending.senderDiscord) {
+        sendConfirmationViaDM(pending.senderDiscord, username)
+          .catch(err => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
       await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer);

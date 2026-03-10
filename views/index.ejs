@@ -63,6 +63,12 @@
           <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them. <a href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot" target="_blank" rel="noopener">Invite the bot</a></span>
         </div>
         <div class="field">
+          <label for="senderDiscord">Your Discord Username</label>
+          <input type="text" id="senderDiscord" name="senderDiscord"
+                 placeholder="yourusername" maxlength="80" autocomplete="off" />
+          <span class="field-hint">The bot will DM you a verification code at this username instead of sending it by email.</span>
+        </div>
+        <div class="field">
           <label for="discordDisplayName">Your Discord Display Name</label>
           <input type="text" id="discordDisplayName" name="discordDisplayName"
                  placeholder="How you want to appear to the recipient" maxlength="80" autocomplete="off" />
@@ -70,6 +76,8 @@
         </div>
       </div>
     </fieldset>
+
+    <input type="hidden" name="deliveryMethod" id="deliveryMethod" value="email" />
 
     <!-- ── Sender ── -->
     <fieldset class="form-group">
@@ -83,8 +91,8 @@
       </div>
 
       <div class="field">
-        <label for="senderEmail">Your Email <span class="required">*</span>
-          <span class="field-hint">(used only to send you a verification code)</span>
+        <label for="senderEmail" id="senderEmailLabel">Your Email <span class="required">*</span>
+          <span class="field-hint" id="senderEmailHint">(used only to send you a verification code)</span>
         </label>
         <input type="email" id="senderEmail" name="senderEmail" required
                placeholder="you@example.com" autocomplete="off" />
@@ -214,15 +222,24 @@
     const tabEmail     = document.getElementById('tabEmail');
     const tabDiscord   = document.getElementById('tabDiscord');
     const senderHint   = document.getElementById('senderNameHint');
+    const senderEmailInput = document.getElementById('senderEmail');
+    const senderEmailLabel = document.getElementById('senderEmailLabel');
+    const senderEmailHint  = document.getElementById('senderEmailHint');
+    const deliveryMethod   = document.getElementById('deliveryMethod');
 
     if (tab === 'email') {
       emailPanel.style.display   = '';
       discordPanel.style.display = 'none';
       tabEmail.classList.add('tab-active');
       tabDiscord.classList.remove('tab-active');
-      // Clear discord field to prevent accidental submission
+      // Clear discord fields to prevent accidental submission
       document.getElementById('recipientDiscord').value = '';
+      document.getElementById('senderDiscord').value = '';
       if (senderHint) senderHint.textContent = 'Shown on the card and in the email.';
+      // Email required for email verification
+      if (senderEmailInput) senderEmailInput.required = true;
+      if (senderEmailHint) senderEmailHint.textContent = '(used only to send you a verification code)';
+      if (deliveryMethod) deliveryMethod.value = 'email';
     } else {
       emailPanel.style.display   = 'none';
       discordPanel.style.display = '';
@@ -231,6 +248,10 @@
       // Clear email field
       document.getElementById('recipientEmail').value = '';
       if (senderHint) senderHint.textContent = 'Shown on the card.';
+      // Email optional when verification is via Discord DM
+      if (senderEmailInput) senderEmailInput.required = false;
+      if (senderEmailHint) senderEmailHint.textContent = '(optional - only needed if not using Discord for verification)';
+      if (deliveryMethod) deliveryMethod.value = 'discord';
     }
   }
 

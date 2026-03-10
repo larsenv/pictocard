@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <%- include('partials/head') %>
-  <title>PictoCard – Verify Your Email</title>
+  <title>PictoCard – Verify Your Identity</title>
 </head>
 <body>
 <%- include('partials/header') %>
@@ -10,11 +10,19 @@
 <main class="container container-narrow">
 
   <section class="hero">
+    <% if (verifyViaDiscord) { %>
+    <h1>Check Your Discord DMs</h1>
+    <p class="hero-sub">
+      The PictoCard bot sent a 6-digit code to <strong><%= discordUsername %></strong> on Discord.
+      Enter it below to continue.
+    </p>
+    <% } else { %>
     <h1>Check Your Email</h1>
     <p class="hero-sub">
       We sent a 6-digit verification code to <strong><%= email %></strong>.
       Enter it below to continue.
     </p>
+    <% } %>
   </section>
 
   <% if (error) { %>
