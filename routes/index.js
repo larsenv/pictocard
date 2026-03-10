@@ -149,10 +149,29 @@ const createLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-router.post('/create', createLimiter, upload.fields([
+const uploadFields = upload.fields([
   { name: 'cardImage', maxCount: 1 },
   { name: 'miiFile',   maxCount: 1 }
-]), async (req, res) => {
+]);
+
+router.post('/create', createLimiter, (req, res, next) => {
+  uploadFields(req, res, (err) => {
+    if (err) {
+      console.error('[POST /create] multer error:', err.message || err);
+    }
+    next(err);
+  });
+}, async (req, res) => {
+  // Early diagnostic log — always runs so we can confirm the route is reached
+  const fileKeys = req.files ? Object.keys(req.files) : [];
+  console.log(`[POST /create] route entered — req.files keys: [${fileKeys.length ? fileKeys.join(', ') : 'none'}]`);
+  if (req.files && req.files.miiFile) {
+    const mf = req.files.miiFile[0];
+    console.log(`[POST /create] miiFile present: name=${mf.originalname} size=${mf.size} mimetype=${mf.mimetype} hasBuffer=${!!mf.buffer}`);
+  } else {
+    console.log('[POST /create] miiFile: not present in req.files');
+  }
+
   try {
     const {
       deliveryMethod,
