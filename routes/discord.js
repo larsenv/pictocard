@@ -2,23 +2,26 @@
 
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
 
 let config;
 try {
   config = require('../config');
 } catch {
-  config = require('../config');
+  config = require('../config.example');
 }
 
-const discordEnabled = config.discord && config.discord.enabled;
+function discordEnabled() {
+  return !!(config.discord && config.discord.enabled &&
+            config.discord.clientId && config.discord.clientSecret &&
+            config.discord.redirectUri);
+}
 
 // ── GET /discord ──────────────────────────────────────────────────────────────
 router.get('/', (_req, res) => {
-  if (!discordEnabled) {
+  if (!discordEnabled()) {
     return res.redirect('/?discord_disabled=1');
   }
-  // Redirect to Discord OAuth2
+  // Redirect to Discord OAuth2 with identify scope to retrieve display name
   const params = new URLSearchParams({
     client_id: config.discord.clientId,
     redirect_uri: config.discord.redirectUri,
@@ -30,37 +33,45 @@ router.get('/', (_req, res) => {
 
 // ── GET /discord/callback ─────────────────────────────────────────────────────
 router.get('/callback', async (req, res) => {
-  if (!discordEnabled) return res.redirect('/');
+  if (!discordEnabled()) return res.redirect('/');
 
   const { code } = req.query;
   if (!code) return res.redirect('/');
 
   try {
     // Exchange code for token
-    const tokenRes = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
         client_id: config.discord.clientId,
         client_secret: config.discord.clientSecret,
         grant_type: 'authorization_code',
         code,
         redirect_uri: config.discord.redirectUri
-      }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
+      })
+    });
 
-    const { access_token } = tokenRes.data;
+    if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`);
+    const tokenData = await tokenRes.json();
+    const { access_token } = tokenData;
 
     // Fetch the authenticated user's profile
-    const userRes = await axios.get('https://discord.com/api/users/@me', {
+    const userRes = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${access_token}` }
     });
 
+    if (!userRes.ok) throw new Error(`User fetch failed: ${userRes.status}`);
+    const user = await userRes.json();
+
+    // global_name is the display name on the new username system;
+    // fall back to username for older accounts
+    const displayName = user.global_name || user.username;
+
     req.session.discordUser = {
-      id: userRes.data.id,
-      username: userRes.data.username,
-      discriminator: userRes.data.discriminator,
-      avatar: userRes.data.avatar
+      id: user.id,
+      username: user.username,
+      displayName
     };
 
     res.redirect('/');
