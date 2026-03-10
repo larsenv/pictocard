@@ -450,7 +450,7 @@ input[type="color"] {
 .font-preview img {
   max-width: 100%;
   width: auto;
-  max-height: 64px;
+  max-height: 120px;
   object-fit: contain;
   display: block;
   margin: 0 auto;
