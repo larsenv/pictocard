@@ -334,7 +334,7 @@ router.post('/send', async (req, res) => {
           .catch(err => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
-      await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer);
+      await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer, pending.senderEmail);
       // Send a delivery confirmation to the sender (fire-and-forget, don't block on error)
       sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail)
         .catch(err => console.error('[sendCardConfirmation]', err.message));
