@@ -17,8 +17,6 @@ const {
   isUserOptedOut: isDiscordUserOptedOut,
   sendCardToDiscordUser
 } = require('../lib/discordBot');
-const { decodeMiiQr } = require('../lib/miiQr');
-
 let config;
 try {
   config = require('../config');
@@ -71,24 +69,6 @@ async function checkContentModeration(text) {
 // In-memory opt-out set for email addresses (no persistence)
 const emailOptOuts = new Set();
 
-/**
- * Detect if a buffer is an image file by checking magic bytes.
- * Used to decide whether to attempt QR code decoding on a Mii file upload.
- * @param {Buffer} buf
- * @returns {boolean}
- */
-function looksLikeImage(buf) {
-  if (!buf || buf.length < 4) return false;
-  // PNG: 89 50 4E 47
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true;
-  // JPEG: FF D8 FF
-  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true;
-  // GIF: 47 49 46
-  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true;
-  // WebP: 52 49 46 46 (RIFF)
-  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return true;
-  return false;
-}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -274,26 +254,21 @@ router.post('/create', createLimiter, (req, res, next) => {
     const code = generateCode();
     const cardId = uuidv4();
 
-    // Mii: use binary file upload
+    // Mii: accept raw binary Mii data only (QR codes are decoded client-side)
     let miiData = null;
     if (miiFile && miiFile.buffer) {
-      const safeName = (miiFile.originalname || '').replace(/[\r\n\x00-\x1f]/g, '?').slice(0, 128);
-      const isImage = looksLikeImage(miiFile.buffer)
-        || (miiFile.mimetype && miiFile.mimetype.startsWith('image/'));
-      console.log(`[mii] received miiFile: name=${safeName} size=${miiFile.buffer.length} mimetype=${miiFile.mimetype} isImage=${isImage}`);
+      const buf = miiFile.buffer;
+      // Reject if still an image (client-side QR scan should have converted it)
+      const isImage = (miiFile.mimetype && miiFile.mimetype.startsWith('image/'))
+        || (buf[0] === 0xFF && buf[1] === 0xD8) // JPEG
+        || (buf[0] === 0x89 && buf[1] === 0x50) // PNG
+        || (buf[0] === 0x47 && buf[1] === 0x49) // GIF
+        || (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
       if (isImage) {
-        // Image uploaded — try to decode as a Mii QR code
-        console.log('[mii] detected image upload, attempting QR decode...');
-        miiData = await decodeMiiQr(miiFile.buffer);
-        if (miiData) {
-          console.log(`[mii] QR decode succeeded, got ${miiData.length} bytes`);
-        } else {
-          console.log('[mii] QR decode failed or no Mii QR found in image');
-        }
+        console.log('[mii] received image file for miiFile — skipping (client should have decoded QR code)');
       } else {
-        // Treat as raw Mii binary data
-        console.log(`[mii] treating as raw binary Mii data (${miiFile.buffer.length} bytes)`);
-        miiData = miiFile.buffer;
+        console.log(`[mii] received binary Mii data (${buf.length} bytes)`);
+        miiData = buf;
       }
     }
 

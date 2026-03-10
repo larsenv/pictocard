@@ -309,5 +309,119 @@
   }());
 </script>
 
+<script type="module">
+  // ── Mii QR code scanner ──────────────────────────────────────────────────
+  // When the user selects an image file for the Mii input, this script:
+  //  1. Uses scanFile() from @getify-as-is/qr-scanner to decode the QR code
+  //  2. Decrypts the 96-byte 3DS/Wii U payload using AES-128-CTR (Web Crypto)
+  //  3. Replaces the file input with a mii.bin File containing the decrypted bytes
+  // The server then receives the raw Mii binary and never needs to deal with images.
+
+  const AES_KEY = new Uint8Array([
+    0x59, 0xFC, 0x81, 0x7E, 0x64, 0x46, 0xEA, 0x61,
+    0x90, 0x34, 0x7B, 0x20, 0xE9, 0xBD, 0xCE, 0x52
+  ]);
+
+  async function decryptMiiQrBinary(bytes) {
+    // bytes: Uint8Array, 96 bytes — format: nonce(8) + ciphertext(88)
+    if (!bytes || bytes.length !== 96) return null;
+    const nonce      = bytes.slice(0, 8);
+    const ciphertext = bytes.slice(8, 96);
+
+    // Build AES-CTR IV for CCM counter block #1:
+    //   [0x02, nonce(8 bytes), 0x00(4 bytes), 0x00, 0x00, 0x01]
+    const iv = new Uint8Array(16);
+    iv[0] = 0x02;
+    iv.set(nonce, 1);
+    iv[15] = 0x01;
+
+    const key = await crypto.subtle.importKey(
+      'raw', AES_KEY, { name: 'AES-CTR' }, false, ['decrypt']
+    );
+    const decBuf = await crypto.subtle.decrypt(
+      // length:24 = rightmost 24 bits (3 bytes) are the CCM counter (L=3 for 12-byte nonce)
+      { name: 'AES-CTR', counter: iv, length: 24 }, key, ciphertext
+    );
+    const dec = new Uint8Array(decBuf);
+
+    // Reconstruct FFLStoreData: plaintext[0:12] + nonce[0:8] + plaintext[12:88]
+    const result = new Uint8Array(96);
+    result.set(dec.slice(0, 12), 0);
+    result.set(nonce, 12);
+    result.set(dec.slice(12), 20);
+    return result;
+  }
+
+  (async () => {
+    const miiInput = document.getElementById('miiFile');
+    if (!miiInput) return;
+
+    // Add a status message element below the input
+    const statusEl = document.createElement('div');
+    statusEl.style.cssText = 'margin-top:6px;font-size:0.9em;color:#555;';
+    miiInput.insertAdjacentElement('afterend', statusEl);
+
+    // Import scanFile from the @getify-as-is/qr-scanner fork (supports binary data)
+    let scanFile;
+    try {
+      ({ scanFile } = await import('https://esm.sh/@getify-as-is/qr-scanner@0.20251225.0'));
+    } catch (e) {
+      console.error('[miiQr] failed to load qr-scanner:', e);
+      return;
+    }
+
+    miiInput.addEventListener('change', async () => {
+      const file = miiInput.files[0];
+      if (!file) { statusEl.textContent = ''; return; }
+
+      const isImage = file.type.startsWith('image/')
+        || /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(file.name);
+      if (!isImage) { statusEl.textContent = ''; return; }
+
+      statusEl.textContent = '\u23F3 Scanning QR code\u2026';
+
+      try {
+        const result = await scanFile(file);
+        const bytes = result && (result.binaryData || result.data);
+
+        if (!bytes || bytes.length === 0) {
+          statusEl.textContent = '\u26A0\uFE0F No QR code found in this image.';
+          return;
+        }
+
+        const bin = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+
+        let miiBytes = null;
+        if (bin.length === 96) {
+          // 3DS / Wii U QR — decrypt with AES-128-CTR
+          miiBytes = await decryptMiiQrBinary(bin);
+          if (!miiBytes) {
+            statusEl.textContent = '\u26A0\uFE0F QR found but decryption failed.';
+            return;
+          }
+          statusEl.textContent = '\u2705 Mii QR decoded and decrypted (3DS/Wii U).';
+        } else if (bin.length >= 74) {
+          // Wii / Switch / DS \u2014 pass binary as-is
+          miiBytes = bin;
+          statusEl.textContent = '\u2705 Mii QR decoded (' + bin.length + ' bytes).';
+        } else {
+          statusEl.textContent = '\u26A0\uFE0F QR payload too short (' + bin.length + ' bytes).';
+          return;
+        }
+
+        // Replace the file input with the decoded/decrypted binary
+        const blob = new Blob([miiBytes], { type: 'application/octet-stream' });
+        const miiFile = new File([blob], 'mii.bin', { type: 'application/octet-stream' });
+        const dt = new DataTransfer();
+        dt.items.add(miiFile);
+        miiInput.files = dt.files;
+      } catch (err) {
+        console.error('[miiQr] scan error:', err);
+        statusEl.textContent = '\u26A0\uFE0F QR scan error: ' + (err.message || err);
+      }
+    });
+  })();
+</script>
+
 </body>
 </html>
