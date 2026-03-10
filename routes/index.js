@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
+const { decodeMiiQr } = require('../lib/miiQr');
 
 let config;
 try {
@@ -25,7 +26,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
-    if (file.fieldname === 'cardImage') {
+    if (file.fieldname === 'cardImage' || file.fieldname === 'miiQrFile') {
       const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       cb(null, allowed.includes(file.mimetype));
     } else if (file.fieldname === 'miiFile') {
@@ -78,7 +79,8 @@ const createLimiter = rateLimit({
 });
 router.post('/create', createLimiter, upload.fields([
   { name: 'cardImage', maxCount: 1 },
-  { name: 'miiFile', maxCount: 1 }
+  { name: 'miiFile',   maxCount: 1 },
+  { name: 'miiQrFile', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const {
@@ -94,7 +96,8 @@ router.post('/create', createLimiter, upload.fields([
     } = req.body;
 
     const cardImageFile = req.files && req.files.cardImage && req.files.cardImage[0];
-    const miiFile = req.files && req.files.miiFile && req.files.miiFile[0];
+    const miiFile       = req.files && req.files.miiFile   && req.files.miiFile[0];
+    const miiQrFile     = req.files && req.files.miiQrFile && req.files.miiQrFile[0];
 
     // Basic validation
     if (!senderName || senderName.trim().length === 0) {
@@ -139,8 +142,17 @@ router.post('/create', createLimiter, upload.fields([
     const code = generateCode();
     const cardId = uuidv4();
 
-    // Mii: read from uploaded file buffer, encode to base64 for the API
-    const miiData = miiFile ? miiFile.buffer.toString('base64') : null;
+    // Mii: try QR code first; fall back to binary file upload
+    let miiData = null;
+    if (miiQrFile && miiQrFile.buffer) {
+      miiData = await decodeMiiQr(miiQrFile.buffer);
+      if (!miiData) {
+        req.session.formError = 'Could not read Mii from the QR code. Try uploading the Mii binary file directly.';
+        return res.redirect('/');
+      }
+    } else if (miiFile && miiFile.buffer) {
+      miiData = miiFile.buffer.toString('base64');
+    }
 
     // For Discord deliveries, prefer the dedicated display name; fall back to senderName
     const displayName = (recipientDiscord && discordDisplayName && discordDisplayName.trim())
