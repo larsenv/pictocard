@@ -60,7 +60,7 @@
           <label for="recipientDiscord">Discord Username</label>
           <input type="text" id="recipientDiscord" name="recipientDiscord"
                  placeholder="discordusername" autocomplete="off" />
-          <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them.</span>
+          <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them. <a href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot" target="_blank" rel="noopener">Invite the bot</a></span>
         </div>
         <div class="field">
           <label for="discordDisplayName">Your Discord Display Name</label>
@@ -151,8 +151,8 @@
     </fieldset>
 
     <!-- ── Optional extras ── -->
-    <details class="form-group extras">
-      <summary>Optional extras</summary>
+    <fieldset class="form-group extras">
+      <legend>Optional Extras</legend>
 
       <div class="field">
         <label for="miiFile">Mii Binary File</label>
@@ -167,7 +167,7 @@
                accept="image/jpeg,image/png,image/webp,image/gif" />
         <span class="field-hint">Upload an image of a Mii QR code from 3DS, Wii U, Switch, Wii, or DS to add your Mii face to the card.</span>
       </div>
-    </details>
+    </fieldset>
 
     <button type="submit" class="btn btn-primary btn-lg">
       Continue &rarr;
