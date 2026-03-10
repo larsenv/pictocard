@@ -235,6 +235,8 @@ router.post('/create', createLimiter, upload.fields([
     const code = generateCode();
     const cardId = uuidv4();
 
+    console.log(code);
+
     // Mii: use binary file upload
     let miiData = null;
     if (miiFile && miiFile.buffer) {
