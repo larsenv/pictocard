@@ -11,6 +11,7 @@ const rateLimit = require('express-rate-limit');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
+const { decodeMiiQr } = require('../lib/miiQr');
 const {
   sendVerificationCodeViaDM,
   sendConfirmationViaDM,
@@ -254,18 +255,24 @@ router.post('/create', createLimiter, (req, res, next) => {
     const code = generateCode();
     const cardId = uuidv4();
 
-    // Mii: accept raw binary Mii data only (QR codes are decoded client-side)
+    // Mii: accept raw binary Mii data or a QR code image (decoded server-side)
     let miiData = null;
     if (miiFile && miiFile.buffer) {
       const buf = miiFile.buffer;
-      // Reject if still an image (client-side QR scan should have converted it)
       const isImage = (miiFile.mimetype && miiFile.mimetype.startsWith('image/'))
         || (buf[0] === 0xFF && buf[1] === 0xD8) // JPEG
         || (buf[0] === 0x89 && buf[1] === 0x50) // PNG
         || (buf[0] === 0x47 && buf[1] === 0x49) // GIF
         || (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
       if (isImage) {
-        console.log('[mii] received image file for miiFile — skipping (client should have decoded QR code)');
+        console.log(`[mii] received image for miiFile (${buf.length} bytes) — attempting server-side QR decode`);
+        const decoded = await decodeMiiQr(buf);
+        if (decoded) {
+          console.log(`[mii] QR decode succeeded → ${decoded.length} bytes`);
+          miiData = decoded;
+        } else {
+          console.log('[mii] QR decode failed — no Mii data');
+        }
       } else {
         console.log(`[mii] received binary Mii data (${buf.length} bytes)`);
         miiData = buf;
