@@ -16,17 +16,33 @@
     </p>
   </section>
 
+  <% if (optedIn) { %>
+  <div class="alert alert-success">
+    ✅ You have been opted back in. You can now receive PictoCards at that address again.
+  </div>
+  <% } %>
+
   <% if (success) { %>
   <div class="alert alert-success">
     ✅ You have been opted out. You will no longer receive PictoCards at that address.
   </div>
+  <p>Changed your mind? You can opt back in below.</p>
+  <form action="/optout/optin" method="POST" class="card-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="field">
+      <label for="optin-email">Your Email Address</label>
+      <input type="email" id="optin-email" name="email" required
+             placeholder="you@example.com" />
+    </div>
+    <button type="submit" class="btn btn-secondary">Opt Back In</button>
+  </form>
   <% } %>
 
   <% if (error) { %>
   <div class="alert alert-error"><%= error %></div>
   <% } %>
 
-  <% if (!success) { %>
+  <% if (!success && !optedIn) { %>
   <form action="/optout" method="POST" class="card-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
     <div class="field">
