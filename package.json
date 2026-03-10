@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/larsenv/pictocard#readme",
   "dependencies": {
+    "@getify-as-is/qr-scanner": "^0.20251225.0",
     "canvas": "^3.2.1",
     "discord.js": "^14.25.1",
     "ejs": "^5.0.1",

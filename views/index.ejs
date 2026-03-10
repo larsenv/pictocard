@@ -168,8 +168,9 @@
       <legend>Optional Extras</legend>
 
       <div class="field">
-        <label for="miiFile">Mii Binary File</label>
+        <label for="miiFile">Mii Binary File or QR Code Image</label>
         <input type="file" id="miiFile" name="miiFile" />
+        <span id="miiQrStatus" class="field-hint" style="display:none;"></span>
       </div>
     </fieldset>
 
@@ -309,6 +310,36 @@
     fontSelect.addEventListener('change', applyFontPreview);
     applyFontPreview(); // set initial preview
   }());
+</script>
+
+<script type="module">
+  import QrScanner from '/js/qr-scanner/qr-scanner.min.js';
+
+  const miiInput  = document.getElementById('miiFile');
+  const miiStatus = document.getElementById('miiQrStatus');
+  if (!miiInput || !miiStatus) return;
+
+  miiInput.addEventListener('change', async function () {
+    const file = this.files && this.files[0];
+    if (!file) { miiStatus.style.display = 'none'; return; }
+
+    if (file.type.startsWith('image/')) {
+      miiStatus.textContent = '🔍 Scanning for Mii QR code…';
+      miiStatus.style.display = '';
+      try {
+        const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
+        if (result && (result.binaryData || result.data)) {
+          miiStatus.textContent = '✅ Mii QR code detected — will be decoded on submit';
+        } else {
+          miiStatus.textContent = '⚠️ No QR code found in this image';
+        }
+      } catch {
+        miiStatus.textContent = '⚠️ No QR code found in this image';
+      }
+    } else {
+      miiStatus.style.display = 'none';
+    }
+  });
 </script>
 </body>
 </html>

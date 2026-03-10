@@ -16,6 +16,7 @@ const {
   isUserOptedOut: isDiscordUserOptedOut,
   sendCardToDiscordUser
 } = require('../lib/discordBot');
+const { decodeMiiQr } = require('../lib/miiQr');
 
 let config;
 try {
@@ -52,6 +53,25 @@ async function checkContentModeration(text) {
 
 // In-memory opt-out set for email addresses (no persistence)
 const emailOptOuts = new Set();
+
+/**
+ * Detect if a buffer is an image file by checking magic bytes.
+ * Used to decide whether to attempt QR code decoding on a Mii file upload.
+ * @param {Buffer} buf
+ * @returns {boolean}
+ */
+function looksLikeImage(buf) {
+  if (!buf || buf.length < 4) return false;
+  // PNG: 89 50 4E 47
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true;
+  // GIF: 47 49 46
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true;
+  // WebP: 52 49 46 46 (RIFF)
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return true;
+  return false;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -218,7 +238,16 @@ router.post('/create', createLimiter, upload.fields([
     // Mii: use binary file upload
     let miiData = null;
     if (miiFile && miiFile.buffer) {
-      miiData = miiFile.buffer
+      const isImage = looksLikeImage(miiFile.buffer)
+        || (miiFile.mimetype && miiFile.mimetype.startsWith('image/'));
+      if (isImage) {
+        // Image uploaded — try to decode as a Mii QR code
+        miiData = await decodeMiiQr(miiFile.buffer);
+        // If QR decoding failed, miiData remains null (image silently ignored)
+      } else {
+        // Treat as raw Mii binary data
+        miiData = miiFile.buffer;
+      }
     }
 
     // Generate the card before showing the preview (before verification)
