@@ -218,7 +218,7 @@ router.post('/create', createLimiter, upload.fields([
     // Mii: use binary file upload
     let miiData = null;
     if (miiFile && miiFile.buffer) {
-      miiData = miiFile.buffer.toString('base64');
+      miiData = miiFile.buffer
     }
 
     // Generate the card before showing the preview (before verification)
