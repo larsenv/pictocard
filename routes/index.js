@@ -139,6 +139,17 @@ router.post('/create', createLimiter, upload.fields([
 
     const usingDiscord = deliveryMethod === 'discord';
 
+    // Discord method requires OAuth authorization
+    if (usingDiscord) {
+      const discordOAuthEnabled = !!(config.discord && config.discord.enabled &&
+                                     config.discord.clientId && config.discord.clientSecret &&
+                                     config.discord.redirectUri);
+      if (discordOAuthEnabled && !req.session.discordUser) {
+        req.session.formError = 'You must log in with Discord before sending via Discord.';
+        return res.redirect('/');
+      }
+    }
+
     // Basic validation
     if (!senderName || senderName.trim().length === 0) {
       req.session.formError = 'Sender name is required.';
