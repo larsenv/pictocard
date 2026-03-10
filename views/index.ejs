@@ -233,6 +233,8 @@
     const senderEmailInput = document.getElementById('senderEmail');
     const deliveryMethod   = document.getElementById('deliveryMethod');
 
+    const senderFieldsGroup = document.getElementById('senderFields');
+
     if (tab === 'email') {
       emailPanel.style.display   = '';
       discordPanel.style.display = 'none';
@@ -241,6 +243,7 @@
       // Clear discord fields to prevent accidental submission
       document.getElementById('recipientDiscord').value = '';
       // Show name and email fields - both required for email
+      if (senderFieldsGroup) senderFieldsGroup.style.display = '';
       if (senderNameField) senderNameField.style.display = '';
       if (senderEmailField) senderEmailField.style.display = '';
       if (senderNameInput) senderNameInput.required = true;
@@ -253,7 +256,8 @@
       tabDiscord.classList.add('tab-active');
       // Clear email field
       document.getElementById('recipientEmail').value = '';
-      // Hide name and email fields - not needed for Discord
+      // Hide entire "About you" section - not needed for Discord
+      if (senderFieldsGroup) senderFieldsGroup.style.display = 'none';
       if (senderNameField) senderNameField.style.display = 'none';
       if (senderEmailField) senderEmailField.style.display = 'none';
       if (senderNameInput) senderNameInput.required = false;

@@ -29,10 +29,15 @@
   </div>
 
   <div class="preview-actions">
-    <form action="/send" method="POST" style="display:inline;">
+    <% if (typeof sendError !== 'undefined' && sendError) { %>
+    <form action="/verify" method="POST" style="display:inline;">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-      <button type="submit" class="btn btn-primary btn-lg">Send Card 🎉</button>
+      <input type="hidden" name="retry" value="1" />
+      <button type="submit" class="btn btn-primary btn-lg">Retry Send 🔄</button>
     </form>
+    <% } else { %>
+    <a href="/verify" class="btn btn-primary btn-lg">Verify &amp; Send 🎉</a>
+    <% } %>
     <a href="/" class="btn btn-secondary btn-lg">Start Over</a>
   </div>
 

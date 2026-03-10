@@ -230,6 +230,18 @@ router.post('/create', createLimiter, upload.fields([
       miiData = miiFile.buffer.toString('base64');
     }
 
+    // Generate the card before showing the preview (before verification)
+    const safeCardText = (cardText || '').slice(0, 500);
+    const cardBuffer = await generateCard({
+      imageBuffer,
+      text: safeCardText,
+      font: fontFamily || 'RodinNTLG',
+      textColor: textColor || '#111111',
+      senderName: effectiveSenderName,
+      miiData,
+      includeDate: true
+    });
+
     // Store everything needed in session (no disk persistence)
     req.session.pending = {
       cardId,
@@ -242,11 +254,11 @@ router.post('/create', createLimiter, upload.fields([
       verifyViaDiscord: usingDiscord,
       recipientEmail: recipientEmail || null,
       recipientDiscord: recipientDiscord || null,
-      cardText: (cardText || '').slice(0, 500),
+      cardText: safeCardText,
       fontFamily: fontFamily || 'RodinNTLG',
       textColor: textColor || '#111111',
       miiData,
-      imageBuffer: imageBuffer.toString('base64')
+      generatedCard: cardBuffer.toString('base64')
     };
 
     // Send verification code via Discord DM or email
@@ -268,12 +280,29 @@ router.post('/create', createLimiter, upload.fields([
       await sendVerificationCode(senderEmail, code, effectiveSenderName);
     }
 
-    res.redirect('/verify');
+    res.redirect('/preview');
   } catch (err) {
     console.error('[POST /create]', err);
     req.session.formError = 'Something went wrong. Please try again.';
     res.redirect('/');
   }
+});
+
+// ── GET /preview ──────────────────────────────────────────────────────────────
+router.get('/preview', (req, res) => {
+  const pending = req.session.pending;
+  if (!pending || !pending.generatedCard) return res.redirect('/');
+  const previewDataUrl = `data:image/png;base64,${pending.generatedCard}`;
+  const sendError = req.session.previewSendError || null;
+  delete req.session.previewSendError;
+  res.render('preview', {
+    previewDataUrl,
+    senderName: pending.senderName,
+    recipientEmail: pending.recipientEmail,
+    recipientDiscord: pending.recipientDiscord,
+    cardText: pending.cardText,
+    sendError
+  });
 });
 
 // ── GET /verify ──────────────────────────────────────────────────────────────
@@ -293,67 +322,34 @@ router.post('/verify', async (req, res) => {
   const pending = req.session.pending;
   if (!pending) return res.redirect('/');
 
-  const { code } = req.body;
+  const { code, retry } = req.body;
 
-  if (Date.now() > pending.codeExpiry) {
-    delete req.session.pending;
-    return res.render('verify', {
-      error: 'Verification code expired. Please start over.',
-      email: pending.senderEmail,
-      verifyViaDiscord: !!pending.verifyViaDiscord,
-      discordUsername: pending.senderDiscord || null
-    });
+  // If this is a retry (Discord delivery failed but code was already verified)
+  const isRetry = retry === '1' && pending.codeVerified;
+
+  if (!isRetry) {
+    if (Date.now() > pending.codeExpiry) {
+      delete req.session.pending;
+      return res.render('verify', {
+        error: 'Verification code expired. Please start over.',
+        email: pending.senderEmail,
+        verifyViaDiscord: !!pending.verifyViaDiscord,
+        discordUsername: pending.senderDiscord || null
+      });
+    }
+
+    if (!code || code.trim() !== pending.code) {
+      return res.render('verify', {
+        error: 'Incorrect code. Please try again.',
+        email: pending.senderEmail,
+        verifyViaDiscord: !!pending.verifyViaDiscord,
+        discordUsername: pending.senderDiscord || null
+      });
+    }
+
+    // Mark code as verified for potential retry
+    pending.codeVerified = true;
   }
-
-  if (!code || code.trim() !== pending.code) {
-    return res.render('verify', {
-      error: 'Incorrect code. Please try again.',
-      email: pending.senderEmail,
-      verifyViaDiscord: !!pending.verifyViaDiscord,
-      discordUsername: pending.senderDiscord || null
-    });
-  }
-
-  try {
-    const imageBuffer = Buffer.from(pending.imageBuffer, 'base64');
-    const cardBuffer = await generateCard({
-      imageBuffer,
-      text: pending.cardText,
-      font: pending.fontFamily,
-      textColor: pending.textColor,
-      senderName: pending.senderName,
-      miiData: pending.miiData,
-      includeDate: true
-    });
-
-    // Store generated card (base64) for the send step
-    req.session.pending.generatedCard = cardBuffer.toString('base64');
-    // No longer need the raw image buffer in session
-    delete req.session.pending.imageBuffer;
-
-    const previewDataUrl = `data:image/png;base64,${req.session.pending.generatedCard}`;
-    res.render('preview', {
-      previewDataUrl,
-      senderName: pending.senderName,
-      recipientEmail: pending.recipientEmail,
-      recipientDiscord: pending.recipientDiscord,
-      cardText: pending.cardText
-    });
-  } catch (err) {
-    console.error('[POST /verify]', err);
-    res.render('verify', {
-      error: 'Failed to generate card. Please try again.',
-      email: pending.senderEmail,
-      verifyViaDiscord: !!pending.verifyViaDiscord,
-      discordUsername: pending.senderDiscord || null
-    });
-  }
-});
-
-// ── POST /send ────────────────────────────────────────────────────────────────
-router.post('/send', async (req, res) => {
-  const pending = req.session.pending;
-  if (!pending || !pending.generatedCard) return res.redirect('/');
 
   try {
     const cardBuffer = Buffer.from(pending.generatedCard, 'base64');
@@ -372,23 +368,15 @@ router.post('/send', async (req, res) => {
         cardBuffer
       );
       if (!result.success) {
-        return res.render('preview', {
-          previewDataUrl: `data:image/png;base64,${pending.generatedCard}`,
-          senderName: pending.senderName,
-          recipientEmail: pending.recipientEmail,
-          recipientDiscord: pending.recipientDiscord,
-          cardText: pending.cardText,
-          sendError: result.error
-        });
+        req.session.previewSendError = `Could not deliver card: ${result.error}`;
+        return res.redirect('/preview');
       }
-      // Send confirmation DM to sender if they provided their Discord username or we have their user ID
       if (pending.senderDiscord || pending.senderDiscordUserId) {
         sendConfirmationViaDM(pending.senderDiscord, username, cardBuffer, pending.senderDiscordUserId)
           .catch(err => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
       await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer, pending.senderEmail);
-      // Send a delivery confirmation to the sender (fire-and-forget, don't block on error)
       if (pending.senderEmail) {
         sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail, cardBuffer)
           .catch(err => console.error('[sendCardConfirmation]', err.message));
@@ -398,16 +386,22 @@ router.post('/send', async (req, res) => {
     delete req.session.pending;
     res.redirect('/?sent=1');
   } catch (err) {
-    console.error('[POST /send]', err);
-    res.render('preview', {
-      previewDataUrl: `data:image/png;base64,${pending.generatedCard}`,
-      senderName: pending.senderName,
-      recipientEmail: pending.recipientEmail,
-      recipientDiscord: pending.recipientDiscord,
-      cardText: pending.cardText,
-      sendError: 'Failed to send card. Please try again.'
+    console.error('[POST /verify]', err);
+    return res.render('verify', {
+      error: 'Failed to send card. Please try again.',
+      email: pending.senderEmail,
+      verifyViaDiscord: !!pending.verifyViaDiscord,
+      discordUsername: pending.senderDiscord || null
     });
   }
+});
+
+// ── POST /send ────────────────────────────────────────────────────────────────
+router.post('/send', async (req, res) => {
+  // Legacy: redirect to verify flow
+  const pending = req.session.pending;
+  if (!pending || !pending.generatedCard) return res.redirect('/');
+  res.redirect('/verify');
 });
 
 // ── GET /tos ──────────────────────────────────────────────────────────────────
