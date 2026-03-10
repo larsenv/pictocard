@@ -240,6 +240,7 @@ router.post('/create', createLimiter, upload.fields([
       senderEmail: senderEmail || null,
       senderName: effectiveSenderName,
       senderDiscord: senderDiscordTrimmed || null,
+      senderDiscordUserId: req.session.discordUser ? req.session.discordUser.id : null,
       verifyViaDiscord: usingDiscord,
       recipientEmail: recipientEmail || null,
       recipientDiscord: recipientDiscord || null,
@@ -252,15 +253,16 @@ router.post('/create', createLimiter, upload.fields([
 
     // Send verification code via Discord DM or email
     if (usingDiscord) {
-      if (senderDiscordTrimmed) {
-        const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code);
+      if (senderDiscordTrimmed || req.session.discordUser) {
+        const oauthUserId = req.session.discordUser ? req.session.discordUser.id : null;
+        const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code, oauthUserId);
         if (!dmResult.success) {
           delete req.session.pending;
           req.session.formError = `Could not send verification code via Discord: ${dmResult.error}`;
           return res.redirect('/');
         }
       } else {
-        // Discord mode but no senderDiscord: cannot send verification - require it
+        // Discord mode but no senderDiscord and no OAuth session: cannot send verification
         req.session.formError = 'Enter your Discord username so the bot can DM you the verification code.';
         return res.redirect('/');
       }
@@ -381,9 +383,9 @@ router.post('/send', async (req, res) => {
           sendError: result.error
         });
       }
-      // Send confirmation DM to sender if they provided their Discord username
-      if (pending.senderDiscord) {
-        sendConfirmationViaDM(pending.senderDiscord, username, cardBuffer)
+      // Send confirmation DM to sender if they provided their Discord username or we have their user ID
+      if (pending.senderDiscord || pending.senderDiscordUserId) {
+        sendConfirmationViaDM(pending.senderDiscord, username, cardBuffer, pending.senderDiscordUserId)
           .catch(err => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
