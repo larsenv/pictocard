@@ -255,14 +255,22 @@ router.post('/create', createLimiter, upload.fields([
     // Mii: use binary file upload
     let miiData = null;
     if (miiFile && miiFile.buffer) {
+      const safeName = (miiFile.originalname || '').replace(/[\r\n\x00-\x1f]/g, '?').slice(0, 128);
       const isImage = looksLikeImage(miiFile.buffer)
         || (miiFile.mimetype && miiFile.mimetype.startsWith('image/'));
+      console.log(`[mii] received miiFile: name=${safeName} size=${miiFile.buffer.length} mimetype=${miiFile.mimetype} isImage=${isImage}`);
       if (isImage) {
         // Image uploaded — try to decode as a Mii QR code
+        console.log('[mii] detected image upload, attempting QR decode...');
         miiData = await decodeMiiQr(miiFile.buffer);
-        // If QR decoding failed, miiData remains null (image silently ignored)
+        if (miiData) {
+          console.log(`[mii] QR decode succeeded, got ${miiData.length} bytes`);
+        } else {
+          console.log('[mii] QR decode failed or no Mii QR found in image');
+        }
       } else {
         // Treat as raw Mii binary data
+        console.log(`[mii] treating as raw binary Mii data (${miiFile.buffer.length} bytes)`);
         miiData = miiFile.buffer;
       }
     }
