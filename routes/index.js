@@ -356,7 +356,8 @@ router.post('/verify', async (req, res) => {
         username,
         pending.senderName,
         pending.cardText,
-        cardBuffer
+        cardBuffer,
+        pending.senderDiscordUserId || null
       );
       if (!result.success) {
         req.session.previewSendError = `Could not deliver card: ${result.error}`;
