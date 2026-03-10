@@ -7,7 +7,6 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
-const Filter = require('bad-words');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
@@ -19,13 +18,37 @@ const {
   sendCardToDiscordUser
 } = require('../lib/discordBot');
 
-const profanityFilter = new Filter();
-
 let config;
 try {
   config = require('../config');
 } catch {
   config = require('../config.example');
+}
+
+/**
+ * Check card text against the OpenAI Moderation API.
+ * Returns true if the text is flagged as inappropriate.
+ * Silently returns false (never blocks) if the API key is not configured or the request fails.
+ * @param {string} text
+ * @returns {Promise<boolean>}
+ */
+async function checkContentModeration(text) {
+  if (!config.moderationApiKey || !text || !text.trim()) return false;
+  try {
+    const response = await fetch('https://api.openai.com/v1/moderations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.moderationApiKey}`
+      },
+      body: JSON.stringify({ input: text.trim() })
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return !!(data.results && data.results[0] && data.results[0].flagged);
+  } catch {
+    return false;
+  }
 }
 
 // In-memory opt-out set for email addresses (no persistence)
@@ -73,7 +96,11 @@ router.get('/', (req, res) => {
     fonts: FONTS,
     presets: getPresetImages(),
     error: req.session.formError || null,
-    success: req.query.sent === '1'
+    success: req.query.sent === '1',
+    discordUser: req.session.discordUser || null,
+    discordOAuthEnabled: !!(config.discord && config.discord.enabled &&
+                            config.discord.clientId && config.discord.clientSecret &&
+                            config.discord.redirectUri)
   });
   delete req.session.formError;
 });
@@ -136,11 +163,14 @@ router.post('/create', createLimiter, upload.fields([
       return res.redirect('/');
     }
 
-    // SFW check on card text
+    // SFW check on card text via external moderation API (skipped if not configured)
     const textToCheck = (cardText || '').trim();
-    if (textToCheck && profanityFilter.isProfane(textToCheck)) {
-      req.session.formError = 'Please keep your message appropriate.';
-      return res.redirect('/');
+    if (textToCheck) {
+      const flagged = await checkContentModeration(textToCheck);
+      if (flagged) {
+        req.session.formError = 'Please keep your message appropriate.';
+        return res.redirect('/');
+      }
     }
 
     // Image: uploaded file takes priority, then preset
