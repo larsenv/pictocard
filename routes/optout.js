@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { emailOptOuts } = require('./index');
+const { sendOptoutConfirmation } = require('../lib/emailService');
 
 // ── GET /optout ───────────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -14,7 +15,7 @@ router.get('/', (req, res) => {
 });
 
 // ── POST /optout ──────────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { email } = req.body;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -26,6 +27,11 @@ router.post('/', (req, res) => {
   }
 
   emailOptOuts.add(email.trim().toLowerCase());
+
+  // Send confirmation email (fire-and-forget)
+  sendOptoutConfirmation(email.trim())
+    .catch(err => console.error('[sendOptoutConfirmation]', err.message));
+
   res.redirect('/optout?done=1');
 });
 
