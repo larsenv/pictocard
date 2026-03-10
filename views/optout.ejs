@@ -49,8 +49,8 @@
     <% } else { %>
       <%/* ── Main form step ─────────────────────────────────────── */%>
       <div class="delivery-tabs" style="margin-bottom:16px;">
-        <a href="/optout" class="tab-btn<%= action !== 'optin' ? ' active' : '' %>">Opt Out</a>
-        <a href="/optout?action=optin" class="tab-btn<%= action === 'optin' ? ' active' : '' %>">Opt Back In</a>
+        <a href="/optout" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>">Opt Out</a>
+        <a href="/optout?action=optin" class="tab-btn<%= action === 'optin' ? ' tab-active' : '' %>">Opt Back In</a>
       </div>
 
       <form action="/optout/request" method="POST" class="card-form">

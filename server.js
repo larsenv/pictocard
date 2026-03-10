@@ -1,5 +1,18 @@
 'use strict';
 
+const Sentry = require('@sentry/node');
+
+// Initialise Sentry early — before any other require — so it can instrument imports.
+// Set the SENTRY_DSN environment variable to enable error reporting.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    // Disable performance tracing — only capture exceptions
+    tracesSampleRate: 0
+  });
+}
+
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -9,7 +22,7 @@ let config;
 try {
   config = require('./config');
 } catch {
-  config = require('./config');
+  config = require('./config.example');
 }
 
 const { initBot } = require('./lib/discordBot');
@@ -64,6 +77,11 @@ app.use((_req, res) => {
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
+// Sentry must capture the error before the generic handler sends a response.
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.expressErrorHandler());
+}
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
