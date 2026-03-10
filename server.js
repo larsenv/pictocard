@@ -9,7 +9,7 @@ let config;
 try {
   config = require('./config');
 } catch {
-  config = require('./config.example');
+  config = require('./config');
 }
 
 const { initBot } = require('./lib/discordBot');
