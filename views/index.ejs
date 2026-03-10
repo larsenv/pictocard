@@ -314,7 +314,7 @@
   (async () => {
   let QrScanner;
   try {
-    const mod = await import('/js/qr-scanner/qr-scanner.min.js');
+    const mod = await import('https://esm.sh/@getify-as-is/qr-scanner@0.20251225.0');
     QrScanner = mod.default || mod;
   } catch (e) {
     console.error('QrScanner failed to load:', e);
