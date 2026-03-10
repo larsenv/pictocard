@@ -61,6 +61,14 @@ app.use(csrf());
 // ── Static files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── Request logger (dev diagnostics) ─────────────────────────────────────────
+app.use((req, _res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    console.log(`[${req.method}] ${req.url} content-type=${req.headers['content-type'] || 'none'}`);
+  }
+  next();
+});
+
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/', require('./routes/index'));
 app.use('/discord', require('./routes/discord'));

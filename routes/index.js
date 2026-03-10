@@ -155,22 +155,25 @@ const uploadFields = upload.fields([
 ]);
 
 router.post('/create', createLimiter, (req, res, next) => {
+  // Log BEFORE multer so we can confirm the route handler is invoked at all
+  console.log('[POST /create] handler reached — running multer...');
   uploadFields(req, res, (err) => {
     if (err) {
       console.error('[POST /create] multer error:', err.message || err);
+      return next(err);
     }
-    next(err);
+    // Multer succeeded — log file info and proceed
+    const fileKeys = req.files ? Object.keys(req.files) : [];
+    console.log(`[POST /create] multer done — req.files keys: [${fileKeys.length ? fileKeys.join(', ') : 'none'}]`);
+    if (req.files && req.files.miiFile) {
+      const mf = req.files.miiFile[0];
+      console.log(`[POST /create] miiFile present: name=${mf.originalname} size=${mf.size} mimetype=${mf.mimetype} hasBuffer=${!!mf.buffer}`);
+    } else {
+      console.log('[POST /create] miiFile: not present in req.files');
+    }
+    next();
   });
 }, async (req, res) => {
-  // Early diagnostic log — always runs so we can confirm the route is reached
-  const fileKeys = req.files ? Object.keys(req.files) : [];
-  console.log(`[POST /create] route entered — req.files keys: [${fileKeys.length ? fileKeys.join(', ') : 'none'}]`);
-  if (req.files && req.files.miiFile) {
-    const mf = req.files.miiFile[0];
-    console.log(`[POST /create] miiFile present: name=${mf.originalname} size=${mf.size} mimetype=${mf.mimetype} hasBuffer=${!!mf.buffer}`);
-  } else {
-    console.log('[POST /create] miiFile: not present in req.files');
-  }
 
   try {
     const {
