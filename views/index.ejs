@@ -309,105 +309,98 @@
   }());
 </script>
 
+<!-- Hidden stub elements required by qr-scan-handler.js (not shown to user) -->
+<div hidden>
+  <input type="file" id="qr-file">
+  <video id="qr-video"></video>
+  <select id="cam-list"></select>
+  <div id="qr-camera-group"></div>
+  <button id="start-camera"></button>
+  <label id="start-camera-label"></label>
+  <button id="stop-camera"></button>
+  <label id="stop-camera-label"></label>
+  <div id="qrcode-group"></div>
+  <input type="text" id="qrcode-data">
+  <input type="text" id="qrcode-data-real" disabled>
+</div>
+
+<script>
+  // Stub functions required by qr-scan-handler.js that live in other mii-unsecure scripts
+  function hexToUint8Array(hex) {
+    return new Uint8Array((hex.match(/.{1,2}/g) || []).map(function(b) { return parseInt(b, 16); }));
+  }
+  function crc16() { return 0; }
+  function findSupportedTypeBySize() { return null; }
+  function setDataConvertInline() {}
+  function parseTomodachiLifeQRCodeData() {}
+</script>
+
+<!-- 3 scripts from mii-unsecure.ariankordi.net for Mii QR decoding -->
+<script src="https://mii-unsecure.ariankordi.net/assets/qr-scan-handler.js"></script>
 <script src="https://mii-unsecure.ariankordi.net/assets/vendor-js/gh-criteo-forks-qr-scanner-qr-scanner.umd.min.js"></script>
 <script src="https://mii-unsecure.ariankordi.net/assets/vendor-js/sjcl-108-min-plus-codecBytes.js"></script>
 
 <script>
-  // ── Mii QR code scanner ──────────────────────────────────────────────────
-  // When the user selects an image file for the Mii input, this script:
-  //  1. Uses QrScanner (loaded from mii-unsecure.ariankordi.net) to scan the QR
-  //  2. Decrypts the 96-byte 3DS/Wii U payload using AES-128-CTR (Web Crypto)
-  //  3. Replaces the file input data with the decrypted Mii binary bytes
-  // The server then receives the raw Mii binary directly.
-
-  const AES_KEY = new Uint8Array([
-    0x59, 0xFC, 0x81, 0x7E, 0x64, 0x46, 0xEA, 0x61,
-    0x90, 0x34, 0x7B, 0x20, 0xE9, 0xBD, 0xCE, 0x52
-  ]);
-
-  async function decryptMiiQrBinary(bytes) {
-    // bytes: Uint8Array, 96 bytes — format: nonce(8) + ciphertext(88)
-    if (!bytes || bytes.length !== 96) return null;
-    const nonce      = bytes.slice(0, 8);
-    const ciphertext = bytes.slice(8, 96);
-
-    // Build AES-CTR IV for CCM counter block #1:
-    //   [0x02, nonce(8 bytes), 0x00(4 bytes), 0x00, 0x00, 0x01]
-    const iv = new Uint8Array(16);
-    iv[0] = 0x02;
-    iv.set(nonce, 1);
-    iv[15] = 0x01;
-
-    const key = await crypto.subtle.importKey(
-      'raw', AES_KEY, { name: 'AES-CTR' }, false, ['decrypt']
-    );
-    const decBuf = await crypto.subtle.decrypt(
-      { name: 'AES-CTR', counter: iv, length: 24 }, key, ciphertext
-    );
-    const dec = new Uint8Array(decBuf);
-
-    // Reconstruct FFLStoreData: plaintext[0:12] + nonce[0:8] + plaintext[12:88]
-    const result = new Uint8Array(96);
-    result.set(dec.slice(0, 12), 0);
-    result.set(nonce, 12);
-    result.set(dec.slice(12), 20);
-    return result;
-  }
-
+  // ── Mii file input handler ───────────────────────────────────────────────
+  // When the user selects an image file for the Mii input:
+  //  1. QrScanner.scanImage() (from gh-criteo-forks script) scans the QR
+  //  2. result.bytes contains the raw binary QR payload
+  //  3. decryptAesCcm() (from qr-scan-handler.js, uses sjcl) decrypts 3DS/Wii U QR
+  //  4. The decrypted Mii binary replaces the file input before form submission
   (function () {
-    const miiInput = document.getElementById('miiFile');
+    var miiInput = document.getElementById('miiFile');
     if (!miiInput) return;
 
-    miiInput.addEventListener('change', async function () {
-      const file = miiInput.files[0];
+    miiInput.addEventListener('change', function () {
+      var file = miiInput.files[0];
       if (!file) return;
 
-      const isImage = file.type.startsWith('image/')
+      var isImage = file.type.startsWith('image/')
         || /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(file.name);
       if (!isImage) return;
 
-      // QrScanner is loaded from the mii-unsecure.ariankordi.net script tag above
-      if (typeof QrScanner === 'undefined') {
-        console.error('[miiQr] QrScanner is not loaded');
+      if (typeof QrScanner === 'undefined' || typeof decryptAesCcm !== 'function') {
+        console.error('[miiQr] QrScanner or decryptAesCcm not available');
         return;
       }
 
-      try {
-        const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
-        const bytes = result && (result.binaryData || result.data);
+      QrScanner.scanImage(file, { returnDetailedScanResult: true })
+        .then(function (result) {
+          if (!result || !result.bytes || !result.bytes.length) {
+            console.warn('[miiQr] QR scanned but no binary data found');
+            return;
+          }
 
-        if (!bytes || bytes.length === 0) return;
+          var bytes = new Uint8Array(result.bytes);
+          var miiBytes = null;
 
-        let bin;
-        if (bytes instanceof Uint8Array) {
-          bin = bytes;
-        } else if (typeof bytes === 'string') {
-          bin = new Uint8Array(Array.from(bytes, c => c.charCodeAt(0)));
-        } else {
-          bin = new Uint8Array(bytes);
-        }
+          if (bytes.length >= 112) {
+            // 3DS / Wii U QR — decrypt with AES-CCM via decryptAesCcm (from qr-scan-handler.js)
+            try {
+              miiBytes = decryptAesCcm(bytes);
+            } catch (e) {
+              console.error('[miiQr] decryptAesCcm failed:', e);
+              return;
+            }
+          } else if (bytes.length >= 74) {
+            // Wii / Switch / DS — pass binary as-is
+            miiBytes = bytes;
+          } else {
+            return;
+          }
 
-        let miiBytes = null;
-        if (bin.length === 96) {
-          // 3DS / Wii U QR — decrypt with AES-128-CTR
-          miiBytes = await decryptMiiQrBinary(bin);
           if (!miiBytes) return;
-        } else if (bin.length >= 74) {
-          // Wii / Switch / DS — pass binary as-is
-          miiBytes = bin;
-        } else {
-          return;
-        }
 
-        // Replace the file input bytes with the decoded/decrypted binary
-        const blob = new Blob([miiBytes], { type: 'application/octet-stream' });
-        const miiFile = new File([blob], file.name, { type: 'application/octet-stream' });
-        const dt = new DataTransfer();
-        dt.items.add(miiFile);
-        miiInput.files = dt.files;
-      } catch (err) {
-        console.error('[miiQr] scan error:', err);
-      }
+          // Replace the file input with the decoded/decrypted Mii binary
+          var blob = new Blob([miiBytes], { type: 'application/octet-stream' });
+          var miiFile = new File([blob], file.name, { type: 'application/octet-stream' });
+          var dt = new DataTransfer();
+          dt.items.add(miiFile);
+          miiInput.files = dt.files;
+        })
+        .catch(function (err) {
+          console.error('[miiQr] scan error:', err);
+        });
     });
   }());
 </script>
