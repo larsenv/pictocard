@@ -327,10 +327,16 @@
       miiStatus.style.display = '';
       try {
         const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
-        if (result && (result.binaryData || result.data)) {
-          miiStatus.textContent = '✅ Mii QR code detected — will be decoded on submit';
+        const binaryData = result && result.binaryData;
+        if (binaryData && binaryData.length >= 74) { // 74 = minimum Mii binary size (Wii RFLCharData)
+          // Replace the file input with the raw binary bytes so the server
+          // receives Mii binary data directly instead of the QR image.
+          const dt = new DataTransfer();
+          dt.items.add(new File([binaryData], 'mii.bin', { type: 'application/octet-stream' }));
+          miiInput.files = dt.files;
+          miiStatus.textContent = '✅ Mii QR code decoded';
         } else {
-          miiStatus.textContent = '⚠️ No QR code found in this image';
+          miiStatus.textContent = '⚠️ No Mii QR code found in this image';
         }
       } catch {
         miiStatus.textContent = '⚠️ No QR code found in this image';
