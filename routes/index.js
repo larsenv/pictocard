@@ -8,14 +8,14 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const FONTS = require('../lib/fonts');
-const { sendVerificationCode, sendCard } = require('../lib/emailService');
+const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
 
 let config;
 try {
   config = require('../config');
 } catch {
-  config = require('../config');
+  config = require('../config.example');
 }
 
 // In-memory opt-out set for email addresses (no persistence)
@@ -268,6 +268,9 @@ router.post('/send', async (req, res) => {
       }
     } else {
       await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer);
+      // Send a delivery confirmation to the sender (fire-and-forget, don't block on error)
+      sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail)
+        .catch(err => console.error('[sendCardConfirmation]', err.message));
     }
 
     delete req.session.pending;
@@ -287,12 +290,12 @@ router.post('/send', async (req, res) => {
 
 // ── GET /tos ──────────────────────────────────────────────────────────────────
 router.get('/tos', (_req, res) => {
-  res.render('tos', { lastUpdated: '2025-01-01' });
+  res.render('tos', { lastUpdated: '2026-03-09' });
 });
 
 // ── GET /privacy ──────────────────────────────────────────────────────────────
 router.get('/privacy', (_req, res) => {
-  res.render('privacy', { lastUpdated: '2025-01-01' });
+  res.render('privacy', { lastUpdated: '2026-03-09' });
 });
 
 module.exports = router;
