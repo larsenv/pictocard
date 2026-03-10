@@ -150,15 +150,26 @@ router.post('/create', createLimiter, upload.fields([
       }
     }
 
-    // Basic validation
-    if (!senderName || senderName.trim().length === 0) {
-      req.session.formError = 'Sender name is required.';
-      return res.redirect('/');
+    // Basic validation - name required for email mode; for Discord, use displayName or OAuth name
+    let effectiveSenderName;
+    if (usingDiscord) {
+      // For Discord sends, derive name from discordDisplayName, OAuth session, or senderName (all optional)
+      const oauthName = req.session.discordUser ? req.session.discordUser.displayName : '';
+      effectiveSenderName = ((discordDisplayName || '').trim())
+        || oauthName
+        || ((senderName || '').trim())
+        || 'Someone';
+    } else {
+      if (!senderName || senderName.trim().length === 0) {
+        req.session.formError = 'Sender name is required.';
+        return res.redirect('/');
+      }
+      effectiveSenderName = senderName.trim();
     }
 
-    // Sender email required only when not using Discord DM for verification
+    // Sender email required only for email delivery (not when sending via Discord)
     const senderDiscordTrimmed = (senderDiscord || '').trim();
-    if (!usingDiscord || !senderDiscordTrimmed) {
+    if (!usingDiscord) {
       if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
         req.session.formError = 'A valid sender email is required for verification.';
         return res.redirect('/');
@@ -221,20 +232,15 @@ router.post('/create', createLimiter, upload.fields([
       miiData = miiFile.buffer.toString('base64');
     }
 
-    // For Discord deliveries, prefer the dedicated display name; fall back to senderName
-    const displayName = (usingDiscord && discordDisplayName && discordDisplayName.trim())
-      ? discordDisplayName.trim()
-      : senderName.trim();
-
     // Store everything needed in session (no disk persistence)
     req.session.pending = {
       cardId,
       code,
       codeExpiry: Date.now() + config.verificationCodeExpiry,
       senderEmail: senderEmail || null,
-      senderName: displayName,
+      senderName: effectiveSenderName,
       senderDiscord: senderDiscordTrimmed || null,
-      verifyViaDiscord: usingDiscord && !!senderDiscordTrimmed,
+      verifyViaDiscord: usingDiscord,
       recipientEmail: recipientEmail || null,
       recipientDiscord: recipientDiscord || null,
       cardText: (cardText || '').slice(0, 500),
@@ -245,15 +251,21 @@ router.post('/create', createLimiter, upload.fields([
     };
 
     // Send verification code via Discord DM or email
-    if (usingDiscord && senderDiscordTrimmed) {
-      const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code);
-      if (!dmResult.success) {
-        delete req.session.pending;
-        req.session.formError = `Could not send verification code via Discord: ${dmResult.error}`;
+    if (usingDiscord) {
+      if (senderDiscordTrimmed) {
+        const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code);
+        if (!dmResult.success) {
+          delete req.session.pending;
+          req.session.formError = `Could not send verification code via Discord: ${dmResult.error}`;
+          return res.redirect('/');
+        }
+      } else {
+        // Discord mode but no senderDiscord: cannot send verification - require it
+        req.session.formError = 'Enter your Discord username so the bot can DM you the verification code.';
         return res.redirect('/');
       }
     } else {
-      await sendVerificationCode(senderEmail, code, senderName.trim());
+      await sendVerificationCode(senderEmail, code, effectiveSenderName);
     }
 
     res.redirect('/verify');
@@ -371,14 +383,16 @@ router.post('/send', async (req, res) => {
       }
       // Send confirmation DM to sender if they provided their Discord username
       if (pending.senderDiscord) {
-        sendConfirmationViaDM(pending.senderDiscord, username)
+        sendConfirmationViaDM(pending.senderDiscord, username, cardBuffer)
           .catch(err => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
       await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer, pending.senderEmail);
       // Send a delivery confirmation to the sender (fire-and-forget, don't block on error)
-      sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail)
-        .catch(err => console.error('[sendCardConfirmation]', err.message));
+      if (pending.senderEmail) {
+        sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail, cardBuffer)
+          .catch(err => console.error('[sendCardConfirmation]', err.message));
+      }
     }
 
     delete req.session.pending;

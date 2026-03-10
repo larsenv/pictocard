@@ -99,17 +99,17 @@
     <input type="hidden" name="deliveryMethod" id="deliveryMethod" value="email" />
 
     <!-- ── Sender ── -->
-    <fieldset class="form-group">
+    <fieldset class="form-group" id="senderFields">
       <legend>About you</legend>
 
       <div class="field" id="senderNameField">
-        <label for="senderName">Your Name <span class="required">*</span></label>
+        <label for="senderName">Your Name <span class="required" id="senderNameRequired">*</span></label>
         <input type="text" id="senderName" name="senderName" required
                placeholder="Your name" maxlength="80" />
         <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
       </div>
 
-      <div class="field">
+      <div class="field" id="senderEmailField">
         <label for="senderEmail" id="senderEmailLabel">Your Email <span class="required">*</span>
           <span class="field-hint" id="senderEmailHint">(used only to send you a verification code)</span>
         </label>
@@ -240,10 +240,10 @@
     const discordPanel = document.getElementById('panelDiscord');
     const tabEmail     = document.getElementById('tabEmail');
     const tabDiscord   = document.getElementById('tabDiscord');
-    const senderHint   = document.getElementById('senderNameHint');
+    const senderNameField  = document.getElementById('senderNameField');
+    const senderEmailField = document.getElementById('senderEmailField');
+    const senderNameInput  = document.getElementById('senderName');
     const senderEmailInput = document.getElementById('senderEmail');
-    const senderEmailLabel = document.getElementById('senderEmailLabel');
-    const senderEmailHint  = document.getElementById('senderEmailHint');
     const deliveryMethod   = document.getElementById('deliveryMethod');
 
     if (tab === 'email') {
@@ -254,10 +254,11 @@
       // Clear discord fields to prevent accidental submission
       document.getElementById('recipientDiscord').value = '';
       document.getElementById('senderDiscord').value = '';
-      if (senderHint) senderHint.textContent = 'Shown on the card and in the email.';
-      // Email required for email verification
+      // Show name and email fields - both required for email
+      if (senderNameField) senderNameField.style.display = '';
+      if (senderEmailField) senderEmailField.style.display = '';
+      if (senderNameInput) senderNameInput.required = true;
       if (senderEmailInput) senderEmailInput.required = true;
-      if (senderEmailHint) senderEmailHint.textContent = '(used only to send you a verification code)';
       if (deliveryMethod) deliveryMethod.value = 'email';
     } else {
       emailPanel.style.display   = 'none';
@@ -266,10 +267,11 @@
       tabDiscord.classList.add('tab-active');
       // Clear email field
       document.getElementById('recipientEmail').value = '';
-      if (senderHint) senderHint.textContent = 'Shown on the card.';
-      // Email optional when verification is via Discord DM
+      // Hide name and email fields - not needed for Discord
+      if (senderNameField) senderNameField.style.display = 'none';
+      if (senderEmailField) senderEmailField.style.display = 'none';
+      if (senderNameInput) senderNameInput.required = false;
       if (senderEmailInput) senderEmailInput.required = false;
-      if (senderEmailHint) senderEmailHint.textContent = '(optional - only needed if not using Discord for verification)';
       if (deliveryMethod) deliveryMethod.value = 'discord';
     }
   }
