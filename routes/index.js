@@ -124,8 +124,6 @@ router.post('/create', createLimiter, upload.fields([
       recipientEmail,
       recipientDiscord,
       senderName,
-      senderDiscord,
-      discordDisplayName,
       cardText,
       fontFamily,
       textColor,
@@ -150,13 +148,11 @@ router.post('/create', createLimiter, upload.fields([
       }
     }
 
-    // Basic validation - name required for email mode; for Discord, use displayName or OAuth name
+    // Basic validation - name required for email mode; for Discord, always use OAuth session
     let effectiveSenderName;
     if (usingDiscord) {
-      // For Discord sends, derive name from discordDisplayName, OAuth session, or senderName (all optional)
-      const oauthName = req.session.discordUser ? req.session.discordUser.displayName : '';
-      effectiveSenderName = ((discordDisplayName || '').trim())
-        || oauthName
+      // Display name comes exclusively from the OAuth session
+      effectiveSenderName = (req.session.discordUser ? req.session.discordUser.displayName : '')
         || ((senderName || '').trim())
         || 'Someone';
     } else {
@@ -167,8 +163,10 @@ router.post('/create', createLimiter, upload.fields([
       effectiveSenderName = senderName.trim();
     }
 
-    // Sender email required only for email delivery (not when sending via Discord)
-    const senderDiscordTrimmed = (senderDiscord || '').trim();
+    // For Discord, sender username comes exclusively from OAuth session
+    const senderDiscordTrimmed = usingDiscord && req.session.discordUser
+      ? req.session.discordUser.username
+      : '';
     if (!usingDiscord) {
       if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
         req.session.formError = 'A valid sender email is required for verification.';

@@ -23,9 +23,9 @@
 
   <section class="hero">
     <h1>Send a PictoCard</h1>
-    <p class="hero-sub">Create a personalized greeting card and deliver it by email - or straight to a Wii via WiiLink.</p>
+    <p class="hero-sub">Create a personalized greeting card and deliver it by email, via Discord DM, or straight to a Wii via WiiLink.</p>
     <p class="hero-desc">
-      PictoCard is a simple, no-account-needed service for sending custom image and text greeting cards.
+      PictoCard is a simple service for sending custom image and text greeting cards.
       Upload any photo, write your message, pick a font and color, then share it with someone special.
       Inspired by the simplicity of Apple iCards - no bloat, just a card.
     </p>
@@ -78,20 +78,6 @@
           <input type="text" id="recipientDiscord" name="recipientDiscord"
                  placeholder="discordusername" autocomplete="off" />
           <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them. <a href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot" target="_blank" rel="noopener">Invite the bot</a></span>
-        </div>
-        <div class="field">
-          <label for="senderDiscord">Your Discord Username</label>
-          <input type="text" id="senderDiscord" name="senderDiscord"
-                 placeholder="yourusername" maxlength="80" autocomplete="off"
-                 value="<%= discordUser ? discordUser.username : '' %>" />
-          <span class="field-hint">The bot will DM you a verification code at this username instead of sending it by email.</span>
-        </div>
-        <div class="field">
-          <label for="discordDisplayName">Your Discord Display Name</label>
-          <input type="text" id="discordDisplayName" name="discordDisplayName"
-                 placeholder="How you want to appear to the recipient" maxlength="80" autocomplete="off"
-                 value="<%= discordUser ? discordUser.displayName : '' %>" />
-          <span class="field-hint">This name is shown to the recipient when the bot delivers your card.</span>
         </div>
       </div>
     </fieldset>
@@ -254,7 +240,6 @@
       tabDiscord.classList.remove('tab-active');
       // Clear discord fields to prevent accidental submission
       document.getElementById('recipientDiscord').value = '';
-      document.getElementById('senderDiscord').value = '';
       // Show name and email fields - both required for email
       if (senderNameField) senderNameField.style.display = '';
       if (senderEmailField) senderEmailField.style.display = '';
