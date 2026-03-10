@@ -35,5 +35,11 @@ module.exports = {
   // Sentry DSN for automatic error reporting.
   // This can also be set via the SENTRY_DSN environment variable (env var takes precedence).
   // Leave empty to disable Sentry. Get a DSN at https://sentry.io/
-  sentryDsn: ''
+  sentryDsn: '',
+
+  // Secret key used when hashing opt-out email addresses (HMAC-SHA512).
+  // Set this to a long random string. If left empty a plain SHA-512 is used.
+  // Changing this value after people have already opted out will invalidate
+  // all existing opt-out entries.
+  optoutHashSecret: ''
 };

@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -23,6 +24,22 @@ try {
   config = require('../config');
 } catch {
   config = require('../config.example');
+}
+
+/**
+ * Hash an email address for storage in the opt-out set.
+ * Uses HMAC-SHA512 when a secret is configured, plain SHA-512 otherwise.
+ * The email is lowercased internally before hashing.
+ * @param {string} email
+ * @returns {string} hex digest
+ */
+function hashEmail(email) {
+  const normalized = email.trim().toLowerCase();
+  const secret = config.optoutHashSecret;
+  if (secret) {
+    return crypto.createHmac('sha512', secret).update(normalized).digest('hex');
+  }
+  return crypto.createHash('sha512').update(normalized).digest('hex');
 }
 
 /**
@@ -227,7 +244,7 @@ router.post('/create', createLimiter, upload.fields([
       return res.redirect('/');
     }
 
-    if (recipientEmail && emailOptOuts.has(recipientEmail.toLowerCase())) {
+    if (recipientEmail && emailOptOuts.has(hashEmail(recipientEmail))) {
       req.session.formError = 'That recipient has opted out of receiving PictoCards.';
       return res.redirect('/');
     }
@@ -437,3 +454,4 @@ router.get('/privacy', (_req, res) => {
 
 module.exports = router;
 module.exports.emailOptOuts = emailOptOuts;
+module.exports.hashEmail = hashEmail;

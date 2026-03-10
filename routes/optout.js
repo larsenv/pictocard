@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
-const { emailOptOuts } = require('./index');
+const { emailOptOuts, hashEmail } = require('./index');
 const { sendOptoutConfirmation, sendOptoutVerificationCode } = require('../lib/emailService');
 
 const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
@@ -107,10 +107,11 @@ router.post('/verify', async (req, res) => {
   const { email, action } = pending;
   delete req.session.optoutPending;
 
+  const emailHash = hashEmail(email);
   if (action === 'optin') {
-    emailOptOuts.delete(email);
+    emailOptOuts.delete(emailHash);
   } else {
-    emailOptOuts.add(email);
+    emailOptOuts.add(emailHash);
     sendOptoutConfirmation(email)
       .catch(err => console.error('[sendOptoutConfirmation]', err.message));
   }
