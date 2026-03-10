@@ -89,16 +89,14 @@
       <legend>About you</legend>
 
       <div class="field" id="senderNameField">
-        <label for="senderName">Your Name <span class="required" id="senderNameRequired">*</span></label>
+        <label for="senderName">Your Name</label>
         <input type="text" id="senderName" name="senderName" required
                placeholder="Your name" maxlength="80" />
         <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
       </div>
 
       <div class="field" id="senderEmailField">
-        <label for="senderEmail" id="senderEmailLabel">Your Email <span class="required">*</span>
-          <span class="field-hint" id="senderEmailHint">(used only to send you a verification code)</span>
-        </label>
+        <label for="senderEmail" id="senderEmailLabel">Your Email</label>
         <input type="email" id="senderEmail" name="senderEmail" required
                placeholder="you@example.com" autocomplete="off" />
       </div>
@@ -315,6 +313,7 @@
 <script type="module">
   import QrScanner from '/js/qr-scanner/qr-scanner.min.js';
 
+  (() => {
   const miiInput  = document.getElementById('miiFile');
   const miiStatus = document.getElementById('miiQrStatus');
   if (!miiInput || !miiStatus) return;
@@ -340,6 +339,7 @@
       miiStatus.style.display = 'none';
     }
   });
+  })();
 </script>
 </body>
 </html>
