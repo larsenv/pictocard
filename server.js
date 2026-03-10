@@ -61,11 +61,6 @@ app.use(csrf());
 // ── Static files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve qr-scanner library for client-side Mii QR code detection
-app.use('/js/qr-scanner', express.static(
-  path.join(__dirname, 'node_modules/@getify-as-is/qr-scanner')
-));
-
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/', require('./routes/index'));
 app.use('/discord', require('./routes/discord'));
