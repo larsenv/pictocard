@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Preview Your Card</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container">
+
+  <section class="hero">
+    <h1>Preview Your Card</h1>
+    <p class="hero-sub">
+      <% if (recipientEmail) { %>
+        This card will be sent to <strong><%= recipientEmail %></strong>.
+      <% } else if (recipientDiscord) { %>
+        This card will be sent to Discord user <strong><%= recipientDiscord %></strong>.
+      <% } %>
+    </p>
+  </section>
+
+  <% if (typeof sendError !== 'undefined' && sendError) { %>
+  <div class="alert alert-error"><%= sendError %></div>
+  <% } %>
+
+  <div class="preview-wrapper">
+    <img src="<%= previewDataUrl %>" alt="Card Preview" class="card-preview-img" />
+  </div>
+
+  <div class="preview-actions">
+    <% if (typeof sendError !== 'undefined' && sendError) { %>
+    <form action="/verify" method="POST" style="display:inline;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="retry" value="1" />
+      <button type="submit" class="btn btn-primary btn-lg">Retry Send 🔄</button>
+    </form>
+    <% } else { %>
+    <a href="/verify" class="btn btn-primary btn-lg">Verify &amp; Send 🎉</a>
+    <% } %>
+    <a href="/" class="btn btn-secondary btn-lg">Start Over</a>
+  </div>
+
+</main>
+
+<%- include('partials/footer') %>
+</body>
+</html>

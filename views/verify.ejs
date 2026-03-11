@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Verify Your Identity</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container container-narrow">
+
+  <section class="hero">
+    <% if (verifyViaDiscord) { %>
+    <h1>Check Your Discord DMs</h1>
+    <p class="hero-sub">
+      The PictoCard bot sent a 6-digit code to <strong><%= discordUsername %></strong> on Discord.
+      Enter it below to continue.
+    </p>
+    <% } else { %>
+    <h1>Check Your Email</h1>
+    <p class="hero-sub">
+      We sent a 6-digit verification code to <strong><%= email %></strong>.
+      Enter it below to continue.
+    </p>
+    <% } %>
+  </section>
+
+  <% if (error) { %>
+  <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <form action="/verify" method="POST" class="card-form verify-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+    <div class="field">
+      <label for="code">Verification Code</label>
+      <input type="text" id="code" name="code"
+             inputmode="numeric" pattern="\d{6}" maxlength="6"
+             placeholder="123456" autofocus required
+             class="code-input" />
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Verify &amp; Send</button>
+      <a href="/" class="btn btn-secondary">Start Over</a>
+    </div>
+  </form>
+
+  <p class="hint-text">The code expires after 10 minutes. <a href="/">Go back</a> to request a new one.</p>
+
+</main>
+
+<%- include('partials/footer') %>
+</body>
+</html>

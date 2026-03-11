@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Opt Out / Opt In</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container container-narrow">
+
+  <section class="hero">
+    <h1>Email Preferences</h1>
+    <p class="hero-sub">
+      Control whether you receive PictoCards at your email address.
+    </p>
+  </section>
+
+  <% if (success) { %>
+  <div class="alert alert-success">
+    <% if (doneAction === 'optin') { %>
+      ✅ You have been opted back in. You can now receive PictoCards at that address again.
+    <% } else { %>
+      ✅ You have been opted out. You will no longer receive PictoCards at that address.
+    <% } %>
+  </div>
+  <% } %>
+
+  <% if (error) { %>
+  <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <% if (!success) { %>
+    <% if (step === 'verify') { %>
+      <%/* ── Code verification step ──────────────────────────────── */%>
+      <p class="hint-text">A 6-digit verification code has been sent to <strong><%= email %></strong>. Enter it below to confirm your choice.</p>
+      <form action="/optout/verify" method="POST" class="card-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="field">
+          <label for="code">Verification Code</label>
+          <input type="text" id="code" name="code" required
+                 placeholder="123456" maxlength="6" inputmode="numeric"
+                 autocomplete="one-time-code" />
+        </div>
+        <button type="submit" class="btn btn-primary">Confirm</button>
+      </form>
+      <p><a href="/optout<%= action === 'optin' ? '?action=optin' : '' %>">← Start over</a></p>
+
+    <% } else { %>
+      <%/* ── Main form step ─────────────────────────────────────── */%>
+      <div class="delivery-tabs" style="margin-bottom:16px;">
+        <a href="/optout" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>">Opt Out</a>
+        <a href="/optout?action=optin" class="tab-btn<%= action === 'optin' ? ' tab-active' : '' %>">Opt Back In</a>
+      </div>
+
+      <form action="/optout/request" method="POST" class="card-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="action" value="<%= action %>" />
+        <div class="field">
+          <label for="email">Your Email Address</label>
+          <input type="email" id="email" name="email" required
+                 placeholder="you@example.com"
+                 value="<%= email %>" />
+        </div>
+        <% if (action === 'optin') { %>
+          <button type="submit" class="btn btn-secondary">Opt Back In</button>
+        <% } else { %>
+          <button type="submit" class="btn btn-primary">Opt Out</button>
+        <% } %>
+      </form>
+
+      <p class="hint-text">A verification code will be sent to your email to confirm your choice.</p>
+    <% } %>
+  <% } %>
+
+  <hr />
+
+  <p class="hint-text">
+    <strong>Discord users:</strong> If you would like to opt out of receiving cards via Discord,
+    use the <code>/optout</code> slash command in any server where the PictoCard bot is present.
+  </p>
+
+</main>
+
+<%- include('partials/footer') %>
+</body>
+</html>

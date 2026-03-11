@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard – Privacy Policy</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container container-narrow prose">
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: <%= lastUpdated %></p>
+
+  <h2>1. Data We Collect</h2>
+  <p>
+    PictoCard is designed to minimise data collection. We do <strong>not</strong> store any emails,
+    uploaded images, or personal information on our servers after your session ends.
+  </p>
+
+  <h2>2. Session Data</h2>
+  <p>
+    During the card-creation flow we temporarily hold the following in your browser session (server-side,
+    in memory only):
+  </p>
+  <ul>
+    <li>Your name and email address (for verification)</li>
+    <li>The recipient's email or Discord username</li>
+    <li>The uploaded image and card text</li>
+    <li>The generated card image</li>
+  </ul>
+  <p>
+    This data is automatically discarded once the card is sent or the server restarts. It is never
+    written to disk or a database.
+  </p>
+
+  <h2>3. Email Delivery</h2>
+  <p>
+    Emails are sent via a third-party SMTP provider. The provider may retain delivery logs in accordance
+    with their own privacy policy. We send a verification code to the sender and the finished card to
+    the recipient - no further email marketing is conducted.
+  </p>
+
+  <h2>4. Opt-out List</h2>
+  <p>
+    If you opt out via the <a href="/optout">opt-out page</a> your email address is added to an
+    in-memory list that prevents cards from being sent to you. This list is also cleared on server
+    restart and is never persisted.
+  </p>
+
+  <h2>5. Discord</h2>
+  <p>
+    If you connect your Discord account, we receive your Discord username and ID temporarily for the
+    purpose of sending a card. No Discord data is stored beyond the current session.
+  </p>
+
+  <h2>6. Cookies</h2>
+  <p>
+    We use a single session cookie to track the card-creation flow. No advertising or tracking
+    cookies are used.
+  </p>
+
+  <h2>7. Contact</h2>
+  <p>
+    For privacy-related enquiries please open an issue on our
+    <a href="https://github.com/larsenv/pictocard" target="_blank" rel="noopener">GitHub repository</a>.
+  </p>
+
+</main>
+
+<%- include('partials/footer') %>
+</body>
+</html>

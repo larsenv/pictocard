@@ -1,0 +1,41 @@
+{
+  "name": "pictocard",
+  "version": "1.0.0",
+  "description": "Send customisable greeting cards by email or to a Wii via WiiLink",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larsenv/pictocard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/larsenv/pictocard/issues"
+  },
+  "homepage": "https://github.com/larsenv/pictocard#readme",
+  "dependencies": {
+    "@getify-as-is/qr-scanner": "^0.20251225.0",
+    "@sentry/node": "^10.43.0",
+    "canvas": "^3.2.1",
+    "canvas-confetti": "^1.9.4",
+    "discord.js": "^14.25.1",
+    "ejs": "^5.0.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "express-session": "^1.19.0",
+    "jsqr": "^1.4.0",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.2",
+    "sjcl": "^1.0.8",
+    "sjcl-all": "^1.0.1",
+    "undici": "^7.22.0",
+    "uuid": "^13.0.0"
+  }
+}

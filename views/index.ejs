@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>PictoCard - Send a Greeting Card</title>
+</head>
+<body>
+<%- include('partials/header') %>
+
+<main class="container">
+
+  <% if (success) { %>
+  <div class="alert alert-success">
+    🎉 Your card was sent successfully!
+  </div>
+  <% } %>
+
+  <% if (error) { %>
+  <div class="alert alert-error">
+    <%= error %>
+  </div>
+  <% } %>
+
+  <section class="hero">
+    <h1>Send a PictoCard</h1>
+    <p class="hero-sub">Create a personalized greeting card and deliver it by email, via Discord DM, or straight to a Wii via WiiLink.</p>
+    <p class="hero-desc">
+      PictoCard is a simple service for sending custom image and text greeting cards.
+      Upload any photo, write your message, pick a font and color, then share it with someone special.
+      Inspired by the simplicity of Apple iCards - no bloat, just a card.
+    </p>
+  </section>
+
+  <form action="/create" method="POST" enctype="multipart/form-data" class="card-form" id="cardForm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+    <!-- ── Recipient (tab switcher) ── -->
+    <fieldset class="form-group">
+      <legend>Who is this for?</legend>
+
+      <div class="delivery-tabs">
+        <button type="button" class="tab-btn tab-active" id="tabEmail" onclick="switchTab('email')">
+          ✉️ Send by Email
+        </button>
+        <button type="button" class="tab-btn" id="tabDiscord"
+          data-discord-auth="<%= (discordOAuthEnabled && !discordUser) ? '0' : '1' %>">
+          💬 Send via Discord<% if (discordOAuthEnabled && !discordUser) { %> 🔒<% } %>
+        </button>
+      </div>
+
+      <div id="panelEmail" class="tab-panel">
+        <div class="field">
+          <label for="recipientEmail">Recipient Email Address</label>
+          <input type="email" id="recipientEmail" name="recipientEmail"
+                 placeholder="friend@example.com" autocomplete="off" />
+        </div>
+      </div>
+
+      <div id="panelDiscord" class="tab-panel" style="display:none">
+        <% if (discordOAuthEnabled) { %>
+          <% if (discordUser) { %>
+          <div class="discord-connected">
+            <span class="discord-connected-label">✅ Connected as <strong><%= discordUser.displayName %></strong></span>
+            <a href="/discord/logout" class="btn btn-sm btn-secondary">Disconnect</a>
+          </div>
+          <% } else { %>
+          <div class="discord-login-prompt">
+            <a href="/discord" class="btn btn-discord">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 127.14 96.36" style="vertical-align:middle;margin-right:6px;fill:currentColor"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69z"/></svg>
+              Log in with Discord to continue
+            </a>
+            <span class="field-hint">Discord login is required to send via Discord DM.</span>
+          </div>
+          <% } %>
+        <% } %>
+        <div class="field">
+          <label for="recipientDiscord">Discord Username</label>
+          <input type="text" id="recipientDiscord" name="recipientDiscord"
+                 placeholder="discordusername" autocomplete="off" />
+          <span class="field-hint">Enter the recipient's Discord username (no @). The PictoCard bot must share a server with them. <a href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot" target="_blank" rel="noopener">Invite the bot</a></span>
+        </div>
+      </div>
+    </fieldset>
+
+    <input type="hidden" name="deliveryMethod" id="deliveryMethod" value="email" />
+
+    <!-- ── Sender ── -->
+    <fieldset class="form-group" id="senderFields">
+      <legend>About you</legend>
+
+      <div class="field" id="senderNameField">
+        <label for="senderName">Your Name</label>
+        <input type="text" id="senderName" name="senderName" required
+               placeholder="Your name" maxlength="80" />
+        <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
+      </div>
+
+      <div class="field" id="senderEmailField">
+        <label for="senderEmail" id="senderEmailLabel">Your Email</label>
+        <input type="email" id="senderEmail" name="senderEmail" required
+               placeholder="you@example.com" autocomplete="off" />
+      </div>
+    </fieldset>
+
+    <!-- ── Image ── -->
+    <fieldset class="form-group">
+      <legend>Card Image</legend>
+
+      <div class="field">
+        <label for="cardImage">Upload an Image</label>
+        <input type="file" id="cardImage" name="cardImage"
+               accept="image/jpeg,image/png,image/gif,image/webp" />
+        <span class="field-hint">JPEG, PNG, GIF or WebP - max 10 MB</span>
+      </div>
+
+      <% if (presets && presets.length > 0) { %>
+      <div class="field">
+        <label>Or choose a preset</label>
+        <div class="preset-gallery">
+          <% presets.forEach(function(src) { %>
+          <label class="preset-option">
+            <input type="radio" name="presetImage" value="<%= src %>" />
+            <img src="<%= src %>" alt="Preset" loading="lazy" />
+          </label>
+          <% }); %>
+        </div>
+      </div>
+      <% } %>
+    </fieldset>
+
+    <!-- ── Message ── -->
+    <fieldset class="form-group">
+      <legend>Your Message</legend>
+
+      <div class="field">
+        <label for="cardText">Message <span class="char-counter" id="charCounter">0 / 500</span></label>
+        <textarea id="cardText" name="cardText" rows="5" maxlength="500"
+                  placeholder="Write your message here..."></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field field-grow">
+          <label for="fontFamily">Font</label>
+          <select id="fontFamily" name="fontFamily">
+            <% fonts.forEach(function(f) { %>
+            <option value="<%= f.family %>" data-file="<%= f.file %>"><%= f.name %></option>
+            <% }); %>
+          </select>
+          <div id="fontPreview" class="font-preview" aria-hidden="true">
+            <img id="fontPreviewImg" src="" alt="" style="display:none;" />
+          </div>
+        </div>
+
+        <div class="field field-shrink">
+          <label for="textColor">Text Color</label>
+          <div class="color-picker-wrap">
+            <input type="color" id="textColor" name="textColor" value="#111111" />
+            <span class="color-label" id="colorLabel">#111111</span>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- ── Optional extras ── -->
+    <fieldset class="form-group extras">
+      <legend>Optional Extras</legend>
+
+      <div class="field">
+        <label for="miiFile">Mii File</label>
+        <input type="file" id="miiFile" name="miiFile" />
+      </div>
+    </fieldset>
+
+    <button type="submit" class="btn btn-primary btn-lg">
+      Continue &rarr;
+    </button>
+  </form>
+
+  <!-- ── WiiLink notice ── -->
+  <aside class="wiilink-notice">
+    <h3>📡 Send to a Wii via WiiLink</h3>
+    <p>
+      You can also send PictoCards directly to a Wii! Each Wii has a unique email address in the format
+      <strong>w&lt;16-digit Wii Number&gt;@rc24.xyz</strong> (e.g. <code>w1234567890123456@rc24.xyz</code>).
+      Enter that address as the recipient above to deliver your card straight to a Wii Message Board.
+    </p>
+  </aside>
+
+
+</main>
+
+<%- include('partials/footer') %>
+
+<script>
+  // Character counter
+  const ta = document.getElementById('cardText');
+  const counter = document.getElementById('charCounter');
+  if (ta && counter) {
+    ta.addEventListener('input', () => {
+      counter.textContent = `${ta.value.length} / 500`;
+    });
+  }
+
+  // Color picker label sync
+  const colorInput = document.getElementById('textColor');
+  const colorLabel = document.getElementById('colorLabel');
+  if (colorInput && colorLabel) {
+    colorInput.addEventListener('input', () => {
+      colorLabel.textContent = colorInput.value;
+    });
+  }
+
+  // Tab switcher
+  function switchTab(tab) {
+    const emailPanel   = document.getElementById('panelEmail');
+    const discordPanel = document.getElementById('panelDiscord');
+    const tabEmail     = document.getElementById('tabEmail');
+    const tabDiscord   = document.getElementById('tabDiscord');
+    const senderNameField  = document.getElementById('senderNameField');
+    const senderEmailField = document.getElementById('senderEmailField');
+    const senderNameInput  = document.getElementById('senderName');
+    const senderEmailInput = document.getElementById('senderEmail');
+    const deliveryMethod   = document.getElementById('deliveryMethod');
+
+    const senderFieldsGroup = document.getElementById('senderFields');
+
+    if (tab === 'email') {
+      emailPanel.style.display   = '';
+      discordPanel.style.display = 'none';
+      tabEmail.classList.add('tab-active');
+      tabDiscord.classList.remove('tab-active');
+      // Clear discord fields to prevent accidental submission
+      document.getElementById('recipientDiscord').value = '';
+      // Show name and email fields - both required for email
+      if (senderFieldsGroup) senderFieldsGroup.style.display = '';
+      if (senderNameField) senderNameField.style.display = '';
+      if (senderEmailField) senderEmailField.style.display = '';
+      if (senderNameInput) senderNameInput.required = true;
+      if (senderEmailInput) senderEmailInput.required = true;
+      if (deliveryMethod) deliveryMethod.value = 'email';
+    } else {
+      emailPanel.style.display   = 'none';
+      discordPanel.style.display = '';
+      tabEmail.classList.remove('tab-active');
+      tabDiscord.classList.add('tab-active');
+      // Clear email field
+      document.getElementById('recipientEmail').value = '';
+      // Hide entire "About you" section - not needed for Discord
+      if (senderFieldsGroup) senderFieldsGroup.style.display = 'none';
+      if (senderNameField) senderNameField.style.display = 'none';
+      if (senderEmailField) senderEmailField.style.display = 'none';
+      if (senderNameInput) senderNameInput.required = false;
+      if (senderEmailInput) senderEmailInput.required = false;
+      if (deliveryMethod) deliveryMethod.value = 'discord';
+    }
+  }
+
+  // Discord tab click - redirect to login if not authorized, otherwise switch tabs
+  (function () {
+    const tabDiscord = document.getElementById('tabDiscord');
+    if (!tabDiscord) return;
+    tabDiscord.addEventListener('click', function () {
+      if (tabDiscord.dataset.discordAuth === '0') {
+        window.location.href = '/discord';
+      } else {
+        switchTab('discord');
+      }
+    });
+  })();
+
+  // Font live preview — loads a preview image named the same as the TTF file
+  (function () {
+    const fontSelect  = document.getElementById('fontFamily');
+    const fontPreview = document.getElementById('fontPreview');
+    const previewImg  = document.getElementById('fontPreviewImg');
+    if (!fontSelect || !previewImg) return;
+
+    // Build a lookup of safe family -> file pairs from server-rendered options
+    const knownFonts = {};
+    for (const opt of fontSelect.options) {
+      const fam  = opt.value;
+      const file = opt.dataset.file || '';
+      // Only allow safe characters: alphanumeric, space, dash, dot, underscore
+      if (/^[\w\- .]+$/.test(fam) && /^[\w\-.]+\.ttf$/i.test(file)) {
+        knownFonts[fam] = file;
+      }
+    }
+
+    function applyFontPreview() {
+      const family = fontSelect.value;
+      const file   = knownFonts[family];
+      if (!family || !file) {
+        previewImg.style.display = 'none';
+        return;
+      }
+      // Derive image path: same basename as TTF, with .png extension
+      const imgFile = file.replace(/\.ttf$/i, '.png');
+      previewImg.src = `/fonts/${imgFile}`;
+      previewImg.alt = family;
+      previewImg.style.display = 'block';
+    }
+
+    // Hide the preview box if the image fails to load (file not yet added)
+    previewImg.addEventListener('error', () => { previewImg.style.display = 'none'; });
+    previewImg.addEventListener('load',  () => { previewImg.style.display = 'block'; });
+
+    fontSelect.addEventListener('change', applyFontPreview);
+    applyFontPreview(); // set initial preview
+  }());
+</script>
+
+<!-- Hidden stub elements required by qr-scan-handler.js (not shown to user) -->
+<div hidden>
+  <input type="file" id="qr-file">
+  <video id="qr-video"></video>
+  <select id="cam-list"></select>
+  <div id="qr-camera-group"></div>
+  <button id="start-camera"></button>
+  <label id="start-camera-label"></label>
+  <button id="stop-camera"></button>
+  <label id="stop-camera-label"></label>
+  <div id="qrcode-group"></div>
+  <input type="text" id="qrcode-data">
+  <input type="text" id="qrcode-data-real" disabled>
+</div>
+
+<script>
+  // Stub functions required by qr-scan-handler.js that live in other mii-unsecure scripts
+  function hexToUint8Array(hex) {
+    return new Uint8Array((hex.match(/.{1,2}/g) || []).map(function(b) { return parseInt(b, 16); }));
+  }
+  function crc16() { return 0; }
+  function findSupportedTypeBySize() { return null; }
+  function setDataConvertInline() {}
+  function parseTomodachiLifeQRCodeData() {}
+</script>
+
+<!-- 3 scripts from mii-unsecure.ariankordi.net for Mii QR decoding -->
+<script src="https://mii-unsecure.ariankordi.net/assets/qr-scan-handler.js"></script>
+<script src="https://mii-unsecure.ariankordi.net/assets/vendor-js/gh-criteo-forks-qr-scanner-qr-scanner.umd.min.js"></script>
+<script src="https://mii-unsecure.ariankordi.net/assets/vendor-js/sjcl-108-min-plus-codecBytes.js"></script>
+
+<script>
+  // ── Mii file input handler ───────────────────────────────────────────────
+  // When the user selects an image file for the Mii input:
+  //  1. QrScanner.scanImage() (from gh-criteo-forks script) scans the QR
+  //  2. result.bytes contains the raw binary QR payload
+  //  3. decryptAesCcm() (from qr-scan-handler.js, uses sjcl) decrypts 3DS/Wii U QR
+  //  4. The decrypted Mii binary replaces the file input before form submission
+  (function () {
+    var miiInput = document.getElementById('miiFile');
+    if (!miiInput) return;
+
+    miiInput.addEventListener('change', function () {
+      var file = miiInput.files[0];
+      if (!file) return;
+
+      var isImage = file.type.startsWith('image/')
+        || /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(file.name);
+      if (!isImage) return;
+
+      if (typeof QrScanner === 'undefined' || typeof decryptAesCcm !== 'function') {
+        console.error('[miiQr] QrScanner or decryptAesCcm not available');
+        return;
+      }
+
+      QrScanner.scanImage(file, { returnDetailedScanResult: true })
+        .then(function (result) {
+          if (!result || !result.bytes || !result.bytes.length) {
+            console.warn('[miiQr] QR scanned but no binary data found');
+            return;
+          }
+
+          var bytes = new Uint8Array(result.bytes);
+          var miiBytes = null;
+
+          if (bytes.length >= 112) {
+            // 3DS / Wii U QR — decrypt with AES-CCM via decryptAesCcm (from qr-scan-handler.js)
+            try {
+              miiBytes = decryptAesCcm(bytes);
+            } catch (e) {
+              console.error('[miiQr] decryptAesCcm failed:', e);
+              return;
+            }
+          } else if (bytes.length >= 74) {
+            // Wii / Switch / DS — pass binary as-is
+            miiBytes = bytes;
+          } else {
+            return;
+          }
+
+          if (!miiBytes) return;
+
+          // Replace the file input with the decoded/decrypted Mii binary
+          var blob = new Blob([miiBytes], { type: 'application/octet-stream' });
+          var miiFile = new File([blob], file.name, { type: 'application/octet-stream' });
+          var dt = new DataTransfer();
+          dt.items.add(miiFile);
+          miiInput.files = dt.files;
+        })
+        .catch(function (err) {
+          console.error('[miiQr] scan error:', err);
+        });
+    });
+  }());
+</script>
+
+</body>
+</html>
