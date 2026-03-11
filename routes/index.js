@@ -136,22 +136,8 @@ const uploadFields = upload.fields([
 ]);
 
 router.post('/create', createLimiter, (req, res, next) => {
-  // Log BEFORE multer so we can confirm the route handler is invoked at all
-  console.log('[POST /create] handler reached — running multer...');
   uploadFields(req, res, (err) => {
-    if (err) {
-      console.error('[POST /create] multer error:', err.message || err);
-      return next(err);
-    }
-    // Multer succeeded — log file info and proceed
-    const fileKeys = req.files ? Object.keys(req.files) : [];
-    console.log(`[POST /create] multer done — req.files keys: [${fileKeys.length ? fileKeys.join(', ') : 'none'}]`);
-    if (req.files && req.files.miiFile) {
-      const mf = req.files.miiFile[0];
-      console.log(`[POST /create] miiFile present: name=${mf.originalname} size=${mf.size} mimetype=${mf.mimetype} hasBuffer=${!!mf.buffer}`);
-    } else {
-      console.log('[POST /create] miiFile: not present in req.files');
-    }
+    if (err) return next(err);
     next();
   });
 }, async (req, res) => {
@@ -265,16 +251,8 @@ router.post('/create', createLimiter, (req, res, next) => {
         || (buf[0] === 0x47 && buf[1] === 0x49) // GIF
         || (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
       if (isImage) {
-        console.log(`[mii] received image for miiFile (${buf.length} bytes) — attempting server-side QR decode`);
-        const decoded = await decodeMiiQr(buf);
-        if (decoded) {
-          console.log(`[mii] QR decode succeeded → ${decoded.length} bytes`);
-          miiData = decoded;
-        } else {
-          console.log('[mii] QR decode failed — no Mii data');
-        }
+        miiData = await decodeMiiQr(buf);
       } else {
-        console.log(`[mii] received binary Mii data (${buf.length} bytes)`);
         miiData = buf;
       }
     }

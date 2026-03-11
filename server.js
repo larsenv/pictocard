@@ -29,14 +29,6 @@ const { initBot } = require('./lib/discordBot');
 
 const app = express();
 
-// ── Ultra-early request logger ── must be FIRST so it fires before session/CSRF ──
-app.use((req, _res, next) => {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    console.log(`[REQUEST] ${req.method} ${req.url} content-type=${req.headers['content-type'] || 'none'}`);
-  }
-  next();
-});
-
 // ── View engine ──────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
