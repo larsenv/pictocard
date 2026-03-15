@@ -1,9 +1,15 @@
-require('dotenv').config();
 const Sentry = require('@sentry/node');
 
-if (process.env.SENTRY_DSN) {
+let config;
+try {
+  config = require('./config');
+} catch {
+  config = require('./config.example');
+}
+
+if (config.sentryDsn) {
   Sentry.init({
-    dsn: process.env.SENTRY_DSN,
+    dsn: config.sentryDsn,
     sendDefaultPii: true,
   });
 }

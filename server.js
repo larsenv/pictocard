@@ -1,5 +1,6 @@
 'use strict';
 require('./instrument.js');
+const Sentry = require('@sentry/node');
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
