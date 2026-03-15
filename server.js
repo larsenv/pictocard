@@ -58,12 +58,6 @@ app.use((_req, res) => {
   res.status(404).send('<h1 style="font-family:sans-serif;color:#DCDCDF;background:#1A1A1E;padding:40px;">404 – Page not found. <a href="/" style="color:#5865f2;">Go home</a></h1>');
 });
 
-// ── Error handler ─────────────────────────────────────────────────────────────
-// Sentry must capture the error before the generic handler sends a response.
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.expressErrorHandler());
-}
-
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
