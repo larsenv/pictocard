@@ -1,18 +1,5 @@
 'use strict';
 
-const Sentry = require('@sentry/node');
-
-// Initialise Sentry early — before any other require — so it can instrument imports.
-// Set the SENTRY_DSN environment variable to enable error reporting.
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    // Disable performance tracing — only capture exceptions
-    tracesSampleRate: 0
-  });
-}
-
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
