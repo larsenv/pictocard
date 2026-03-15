@@ -1,5 +1,6 @@
 'use strict';
 require('./instrument.js');
+const Sentry = require('@sentry/node');
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -60,7 +61,7 @@ app.use((_req, res) => {
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 // Sentry must capture the error before the generic handler sends a response.
-if (process.env.SENTRY_DSN) {
+if (config.sentryDsn) {
   app.use(Sentry.expressErrorHandler());
 }
 

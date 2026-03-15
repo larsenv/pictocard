@@ -33,7 +33,6 @@ module.exports = {
   twemojiCdnBase: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72',
 
   // Sentry DSN for automatic error reporting.
-  // This can also be set via the SENTRY_DSN environment variable (env var takes precedence).
   // Leave empty to disable Sentry. Get a DSN at https://sentry.io/
   sentryDsn: '',
 
