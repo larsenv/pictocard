@@ -5,6 +5,12 @@ const express = require('express');
 const router = express.Router();
 const { emailOptOuts, hashEmail } = require('./index');
 const { sendOptoutConfirmation, sendOptoutVerificationCode } = require('../lib/emailService');
+let config;
+try {
+  config = require('../config');
+} catch {
+  config = require('../config.example');
+}
 
 const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -22,7 +28,8 @@ router.get('/', (req, res) => {
     success: req.query.done === '1',
     doneAction: req.query.doneAction || 'optout',
     error: null,
-    email: ''
+    email: '',
+    domain: config.domain
   });
 });
 
@@ -39,7 +46,8 @@ router.post('/request', async (req, res) => {
       success: false,
       doneAction: safeAction,
       error: 'Please enter a valid email address.',
-      email: email || ''
+      email: email || '',
+      domain: config.domain
     });
   }
 
@@ -61,7 +69,8 @@ router.post('/request', async (req, res) => {
       success: false,
       doneAction: safeAction,
       error: 'Failed to send verification email. Please try again.',
-      email: email.trim()
+      email: email.trim(),
+      domain: config.domain
     });
   }
 
@@ -71,7 +80,8 @@ router.post('/request', async (req, res) => {
     success: false,
     doneAction: safeAction,
     error: null,
-    email: email.trim()
+    email: email.trim(),
+    domain: config.domain
   });
 });
 
@@ -89,7 +99,8 @@ router.post('/verify', async (req, res) => {
       success: false,
       doneAction: 'optout',
       error: 'Verification code expired. Please start again.',
-      email: ''
+      email: '',
+      domain: config.domain
     });
   }
 
@@ -100,7 +111,8 @@ router.post('/verify', async (req, res) => {
       success: false,
       doneAction: pending.action,
       error: 'Incorrect verification code. Please try again.',
-      email: pending.email
+      email: pending.email,
+      domain: config.domain
     });
   }
 

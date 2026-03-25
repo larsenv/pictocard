@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pictocard.net/sitemap.xml

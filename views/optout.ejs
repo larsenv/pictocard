@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <%- include('partials/head') %>
+  <%- include('partials/head', {
+    metaDescription: 'Opt out or opt in to receiving PictoCards at your email address. Control your email preferences.',
+    ogTitle: 'PictoCard – Email Preferences',
+    ogDescription: 'Control whether you receive PictoCards at your email address.',
+    ogUrl: domain + '/optout',
+    canonicalUrl: domain + '/optout'
+  }) %>
   <title>PictoCard – Opt Out / Opt In</title>
 </head>
 <body>

@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <%- include('partials/head') %>
+  <%- include('partials/head', {
+    metaDescription: 'Create and send customisable greeting cards by email, via Discord DM, or straight to a Wii via WiiLink. Upload any photo, write your message, pick a font and color.',
+    ogTitle: 'PictoCard - Send a Greeting Card',
+    ogDescription: 'Create and send customisable greeting cards by email, via Discord DM, or straight to a Wii via WiiLink.',
+    ogUrl: domain + '/'
+  }) %>
   <title>PictoCard - Send a Greeting Card</title>
 </head>
 <body>

@@ -117,7 +117,8 @@ router.get('/', (req, res) => {
     discordUser: req.session.discordUser || null,
     discordOAuthEnabled: !!(config.discord && config.discord.enabled &&
                             config.discord.clientId && config.discord.clientSecret &&
-                            config.discord.redirectUri)
+                            config.discord.redirectUri),
+    domain: config.domain
   });
   delete req.session.formError;
 });
@@ -328,7 +329,8 @@ router.get('/preview', (req, res) => {
     recipientEmail: pending.recipientEmail,
     recipientDiscord: pending.recipientDiscord,
     cardText: pending.cardText,
-    sendError
+    sendError,
+    domain: config.domain
   });
 });
 
@@ -340,7 +342,8 @@ router.get('/verify', (req, res) => {
     error: null,
     email: senderEmail,
     verifyViaDiscord: !!verifyViaDiscord,
-    discordUsername: senderDiscord || null
+    discordUsername: senderDiscord || null,
+    domain: config.domain
   });
 });
 
@@ -361,7 +364,8 @@ router.post('/verify', async (req, res) => {
         error: 'Verification code expired. Please start over.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
-        discordUsername: pending.senderDiscord || null
+        discordUsername: pending.senderDiscord || null,
+        domain: config.domain
       });
     }
 
@@ -370,7 +374,8 @@ router.post('/verify', async (req, res) => {
         error: 'Incorrect code. Please try again.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
-        discordUsername: pending.senderDiscord || null
+        discordUsername: pending.senderDiscord || null,
+        domain: config.domain
       });
     }
 
@@ -419,7 +424,8 @@ router.post('/verify', async (req, res) => {
       error: 'Failed to send card. Please try again.',
       email: pending.senderEmail,
       verifyViaDiscord: !!pending.verifyViaDiscord,
-      discordUsername: pending.senderDiscord || null
+      discordUsername: pending.senderDiscord || null,
+      domain: config.domain
     });
   }
 });
@@ -434,12 +440,12 @@ router.post('/send', async (req, res) => {
 
 // ── GET /tos ──────────────────────────────────────────────────────────────────
 router.get('/tos', (_req, res) => {
-  res.render('tos', { lastUpdated: '2026-03-09' });
+  res.render('tos', { lastUpdated: '2026-03-09', domain: config.domain });
 });
 
 // ── GET /privacy ──────────────────────────────────────────────────────────────
 router.get('/privacy', (_req, res) => {
-  res.render('privacy', { lastUpdated: '2026-03-09' });
+  res.render('privacy', { lastUpdated: '2026-03-09', domain: config.domain });
 });
 
 module.exports = router;
