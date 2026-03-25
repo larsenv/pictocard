@@ -1,11 +1,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="PictoCard – send customisable greeting cards by email or Discord." />
+  <meta name="description" content="<%- metaDescription || 'PictoCard – send customisable greeting cards by email or Discord.' %>" />
   <meta name="theme-color" content="#1A1A1E" />
+  <% if (canonicalUrl) { %>
+  <link rel="canonical" href="<%- canonicalUrl %>" />
+  <% } %>
   <!-- Open Graph -->
-  <meta property="og:title" content="PictoCard" />
-  <meta property="og:description" content="Send customisable greeting cards by email or Discord" />
+  <meta property="og:title" content="<%- ogTitle || 'PictoCard' %>" />
+  <meta property="og:description" content="<%- ogDescription || 'Send customisable greeting cards by email or Discord' %>" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PictoCard" />
+  <meta property="og:image" content="<%= domain %>/apple-touch-icon.png" />
+  <% if (ogUrl) { %>
+  <meta property="og:url" content="<%- ogUrl %>" />
+  <% } %>
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<%- ogTitle || 'PictoCard' %>" />
+  <meta name="twitter:description" content="<%- ogDescription || 'Send customisable greeting cards by email or Discord' %>" />
+  <meta name="twitter:image" content="<%= domain %>/apple-touch-icon.png" />
   <link rel="stylesheet" href="/css/main.css" />
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
