@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <%- include('partials/head') %>
+  <%- include('partials/verify', {
+    metaDescription: 'Verify Your Identity',
+    ogTitle: 'PictoCard – Verify Your Identity',
+    ogDescription: 'Verify Your Identity',
+    ogUrl: domain + '/verify',
+    canonicalUrl: domain + '/verify'
+  }) %>
   <title>PictoCard – Verify Your Identity</title>
 </head>
 <body>
