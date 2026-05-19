@@ -1,12 +1,13 @@
 {
   "name": "pictocard",
   "version": "1.0.0",
-  "description": "Send customisable greeting cards by email or to a Wii via WiiLink",
+  "description": "Send customizable greeting cards by email or on Discord",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "playwright test",
+    "test:local": "PORT=3001 playwright test"
   },
   "repository": {
     "type": "git",
@@ -34,5 +35,8 @@
     "nodemailer": "^8.0.2",
     "undici": "^7.22.0",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }

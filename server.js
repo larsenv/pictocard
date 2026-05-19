@@ -29,19 +29,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // ── Sessions (in-memory, no persistent storage) ──────────────────────────────
-app.use(session({
-  secret: config.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    // Set secure:true when the app is served over HTTPS (production).
-    // Behind a reverse proxy, ensure trust proxy is enabled above.
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 30 * 60 * 1000 // 30 minutes
-  }
-}));
+app.use(
+  session({
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      // Set secure:true when the app is served over HTTPS (production).
+      // Behind a reverse proxy, ensure trust proxy is enabled above.
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 60 * 1000 // 30 minutes
+    }
+  })
+);
 
 // ── CSRF protection (all state-changing routes) ───────────────────────────────
 app.use(csrf());
@@ -56,13 +58,21 @@ app.use('/optout', require('./routes/optout'));
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
-  res.status(404).send('<h1 style="font-family:sans-serif;color:#DCDCDF;background:#1A1A1E;padding:40px;">404 – Page not found. <a href="/" style="color:#5865f2;">Go home</a></h1>');
+  res
+    .status(404)
+    .send(
+      '<h1 style="font-family:sans-serif;color:#DCDCDF;background:#1A1A1E;padding:40px;">404 - Page not found. <a href="/" style="color:#5865f2;">Go home</a></h1>'
+    );
 });
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).send('<h1 style="font-family:sans-serif;color:#DCDCDF;background:#1A1A1E;padding:40px;">Something went wrong. <a href="/" style="color:#5865f2;">Go home</a></h1>');
+  res
+    .status(500)
+    .send(
+      '<h1 style="font-family:sans-serif;color:#DCDCDF;background:#1A1A1E;padding:40px;">Something went wrong. <a href="/" style="color:#5865f2;">Go home</a></h1>'
+    );
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
@@ -72,6 +82,6 @@ app.listen(port, () => {
 });
 
 // Initialise Discord bot (no-op if disabled)
-initBot().catch(err => console.error('[Discord] init failed:', err.message));
+initBot().catch((err) => console.error('[Discord] init failed:', err.message));
 
 module.exports = app;

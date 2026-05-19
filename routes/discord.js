@@ -11,9 +11,13 @@ try {
 }
 
 function discordEnabled() {
-  return !!(config.discord && config.discord.enabled &&
-            config.discord.clientId && config.discord.clientSecret &&
-            config.discord.redirectUri);
+  return !!(
+    config.discord &&
+    config.discord.enabled &&
+    config.discord.clientId &&
+    config.discord.clientSecret &&
+    config.discord.redirectUri
+  );
 }
 
 // ── GET /discord ──────────────────────────────────────────────────────────────

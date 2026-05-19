@@ -124,8 +124,9 @@ router.post('/verify', async (req, res) => {
     emailOptOuts.delete(emailHash);
   } else {
     emailOptOuts.add(emailHash);
-    sendOptoutConfirmation(email)
-      .catch(err => console.error('[sendOptoutConfirmation]', err.message));
+    sendOptoutConfirmation(email).catch((err) =>
+      console.error('[sendOptoutConfirmation]', err.message)
+    );
   }
 
   res.redirect(`/optout?done=1&doneAction=${action}`);

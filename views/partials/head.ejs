@@ -1,24 +1,62 @@
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="<%- metaDescription || 'PictoCard – send customisable greeting cards by email or Discord.' %>" />
-  <meta name="theme-color" content="#1A1A1E" />
-  <!-- Open Graph -->
-  <meta property="og:title" content="<%- ogTitle || 'PictoCard' %>" />
-  <meta property="og:description" content="<%- ogDescription || 'Send customisable greeting cards by email or Discord' %>" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="PictoCard" />
-  <meta property="og:image" content="<%= domain %>/apple-touch-icon.png" />
-  <% if (ogUrl) { %>
-  <meta property="og:url" content="<%- ogUrl %>" />
-  <% } %>
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="<%- ogTitle || 'PictoCard' %>" />
-  <meta name="twitter:description" content="<%- ogDescription || 'Send customisable greeting cards by email or Discord' %>" />
-  <meta name="twitter:image" content="<%= domain %>/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/css/main.css" />
-  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <link rel="shortcut icon" href="/favicon.ico" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title><%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard - send customizable greeting cards by email or Discord' %></title>
+<meta name="description" content="<%- (typeof metaDescription !== 'undefined' && metaDescription) ? metaDescription : 'PictoCard - send customizable greeting cards by email or Discord.' %>" />
+<meta name="keywords" content="PictoCard, greeting cards, digital cards, email cards, Discord cards, personalized cards, iCards alternative" />
+<meta name="theme-color" content="#1A1A1E" />
+<% if (typeof metaRobots !== 'undefined' && metaRobots) { %>
+<meta name="robots" content="<%- metaRobots %>" />
+<% } %>
+<% if (typeof canonicalUrl !== 'undefined' && canonicalUrl) { %>
+<link rel="canonical" href="<%- canonicalUrl %>" />
+<% } %>
+
+<!-- Open Graph -->
+<meta property="og:title" content="<%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard' %>" />
+<meta property="og:description" content="<%- (typeof ogDescription !== 'undefined' && ogDescription) ? ogDescription : 'Send customizable greeting cards by email or Discord' %>" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="PictoCard" />
+<meta property="og:image" content="<%= domain %>/apple-touch-icon.png" />
+<% if (typeof ogUrl !== 'undefined' && ogUrl) { %>
+<meta property="og:url" content="<%- ogUrl %>" />
+<% } %>
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="<%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard' %>" />
+<meta name="twitter:description" content="<%- (typeof ogDescription !== 'undefined' && ogDescription) ? ogDescription : 'Send customizable greeting cards by email or Discord' %>" />
+<meta name="twitter:image" content="<%= domain %>/apple-touch-icon.png" />
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+  [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PictoCard",
+      "url": "<%= domain %>",
+      "description": "Create and send customizable greeting cards by email or on Discord.",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "PictoCard",
+      "url": "<%= domain %>",
+      "logo": "<%= domain %>/apple-touch-icon.png"
+    }
+  ]
+</script>
+
+<link rel="stylesheet" href="/css/main.css" />
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<link rel="shortcut icon" href="/favicon.ico" />

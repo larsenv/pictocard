@@ -1,4 +1,9 @@
 User-agent: *
+Disallow: /preview
+Disallow: /verify
+Disallow: /discord
+Disallow: /create
+Disallow: /verify-request
 Allow: /
 
 Sitemap: https://pictocard.net/sitemap.xml
