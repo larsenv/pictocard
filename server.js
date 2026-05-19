@@ -18,6 +18,16 @@ const { initBot } = require('./lib/discordBot');
 
 const app = express();
 
+// ── Debug Middleware (Temporary) ─────────────────────────────────────────────
+app.use((req, res, next) => {
+  const indexFile = path.join(app.get('views'), 'index.ejs');
+  console.log(`[Debug] Requested: ${req.url}`);
+  console.log(`[Debug] Views root: ${app.get('views')}`);
+  console.log(`[Debug] index.ejs path: ${indexFile}`);
+  console.log(`[Debug] index.ejs exists: ${fs.existsSync(indexFile)}`);
+  next();
+});
+
 // ── View engine ──────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
 const viewsPath = path.join(__dirname, 'views');
