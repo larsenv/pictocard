@@ -55,7 +55,7 @@ async function checkContentModeration(text) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.moderationApiKey}`
+        Authorization: `Bearer ${config.moderationApiKey}`
       },
       body: JSON.stringify({ input: text.trim() })
     });
@@ -69,7 +69,6 @@ async function checkContentModeration(text) {
 
 // In-memory opt-out set for email addresses (no persistence)
 const emailOptOuts = new Set();
-
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -94,9 +93,10 @@ let cachedPresets = null;
 function getPresetImages() {
   if (cachedPresets !== null) return cachedPresets;
   try {
-    cachedPresets = fs.readdirSync(PRESETS_DIR)
-      .filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f))
-      .map(f => `/images/presets/${f}`);
+    cachedPresets = fs
+      .readdirSync(PRESETS_DIR)
+      .filter((f) => /\.(jpe?g|png|gif|webp)$/i.test(f))
+      .map((f) => `/images/presets/${f}`);
   } catch {
     cachedPresets = [];
   }
@@ -115,10 +115,15 @@ router.get('/', (req, res) => {
     error: req.session.formError || null,
     success: req.query.sent === '1',
     discordUser: req.session.discordUser || null,
-    discordOAuthEnabled: !!(config.discord && config.discord.enabled &&
-                            config.discord.clientId && config.discord.clientSecret &&
-                            config.discord.redirectUri),
-    domain: config.domain
+    discordOAuthEnabled: !!(
+      config.discord &&
+      config.discord.enabled &&
+      config.discord.clientId &&
+      config.discord.clientSecret &&
+      config.discord.redirectUri
+    ),
+    domain: config.domain,
+    pending: req.session.pending || null
   });
   delete req.session.formError;
 });
@@ -133,188 +138,181 @@ const createLimiter = rateLimit({
 });
 const uploadFields = upload.fields([
   { name: 'cardImage', maxCount: 1 },
-  { name: 'miiFile',   maxCount: 1 }
+  { name: 'miiFile', maxCount: 1 }
 ]);
 
-router.post('/create', createLimiter, (req, res, next) => {
-  uploadFields(req, res, (err) => {
-    if (err) return next(err);
-    next();
-  });
-}, async (req, res) => {
-
-  try {
-    const {
-      deliveryMethod,
-      recipientEmail,
-      recipientDiscord,
-      senderName,
-      cardText,
-      fontFamily,
-      textColor,
-      presetImage,
-      senderEmail
-    } = req.body;
-
-    const cardImageFile = req.files && req.files.cardImage && req.files.cardImage[0];
-    const miiFile       = req.files && req.files.miiFile   && req.files.miiFile[0];
-
-    const usingDiscord = deliveryMethod === 'discord';
-
-    // Discord method requires OAuth authorization
-    if (usingDiscord) {
-      const discordOAuthEnabled = !!(config.discord && config.discord.enabled &&
-                                     config.discord.clientId && config.discord.clientSecret &&
-                                     config.discord.redirectUri);
-      if (discordOAuthEnabled && !req.session.discordUser) {
-        req.session.formError = 'You must log in with Discord before sending via Discord.';
-        return res.redirect('/');
-      }
-    }
-
-    // Basic validation - name required for email mode; for Discord, always use OAuth session
-    let effectiveSenderName;
-    if (usingDiscord) {
-      // Display name comes exclusively from the OAuth session
-      effectiveSenderName = (req.session.discordUser ? req.session.discordUser.displayName : '')
-        || ((senderName || '').trim())
-        || 'Someone';
-    } else {
-      if (!senderName || senderName.trim().length === 0) {
-        req.session.formError = 'Sender name is required.';
-        return res.redirect('/');
-      }
-      effectiveSenderName = senderName.trim();
-    }
-
-    // For Discord, sender username comes exclusively from OAuth session
-    const senderDiscordTrimmed = usingDiscord && req.session.discordUser
-      ? req.session.discordUser.username
-      : '';
-    if (!usingDiscord) {
-      if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-        req.session.formError = 'A valid sender email is required for verification.';
-        return res.redirect('/');
-      }
-    }
-
-    if (!recipientEmail && !recipientDiscord) {
-      req.session.formError = 'Please enter a recipient email or Discord username.';
-      return res.redirect('/');
-    }
-    if (recipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
-      req.session.formError = 'Please enter a valid recipient email address.';
-      return res.redirect('/');
-    }
-
-    // SFW check on card text via external moderation API (skipped if not configured)
-    const textToCheck = (cardText || '').trim();
-    if (textToCheck) {
-      const flagged = await checkContentModeration(textToCheck);
-      if (flagged) {
-        req.session.formError = 'Please keep your message appropriate.';
-        return res.redirect('/');
-      }
-    }
-
-    // Image: uploaded file takes priority, then preset
-    let imageBuffer = null;
-    if (cardImageFile && cardImageFile.buffer) {
-      imageBuffer = cardImageFile.buffer;
-    } else if (presetImage) {
-      const safeName = path.basename(presetImage);
-      const presetPath = path.join(PRESETS_DIR, safeName);
-      if (fs.existsSync(presetPath)) {
-        imageBuffer = fs.readFileSync(presetPath);
-      }
-    }
-
-    if (!imageBuffer) {
-      req.session.formError = 'Please upload an image or select a preset.';
-      return res.redirect('/');
-    }
-
-    if (recipientEmail && emailOptOuts.has(hashEmail(recipientEmail))) {
-      req.session.formError = 'That recipient has opted out of receiving PictoCards.';
-      return res.redirect('/');
-    }
-
-    const code = generateCode();
-    const cardId = uuidv4();
-
-    // Mii: accept raw binary Mii data or a QR code image (decoded server-side)
-    let miiData = null;
-    if (miiFile && miiFile.buffer) {
-      const buf = miiFile.buffer;
-      const isImage = (miiFile.mimetype && miiFile.mimetype.startsWith('image/'))
-        || (buf[0] === 0xFF && buf[1] === 0xD8) // JPEG
-        || (buf[0] === 0x89 && buf[1] === 0x50) // PNG
-        || (buf[0] === 0x47 && buf[1] === 0x49) // GIF
-        || (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
-      if (isImage) {
-        miiData = await decodeMiiQr(buf);
-      } else {
-        miiData = buf;
-      }
-    }
-
-    // Generate the card before showing the preview (before verification)
-    const safeCardText = (cardText || '').slice(0, 500);
-    const cardBuffer = await generateCard({
-      imageBuffer,
-      text: safeCardText,
-      font: fontFamily || 'RodinNTLG',
-      textColor: textColor || '#111111',
-      senderName: effectiveSenderName,
-      miiData,
-      includeDate: true
+router.post(
+  '/create',
+  createLimiter,
+  (req, res, next) => {
+    uploadFields(req, res, (err) => {
+      if (err) return next(err);
+      next();
     });
+  },
+  async (req, res) => {
+    try {
+      const {
+        deliveryMethod,
+        recipientEmail,
+        recipientDiscord,
+        senderName,
+        cardText,
+        fontFamily,
+        textColor,
+        presetImage,
+        senderEmail
+      } = req.body;
 
-    // Store everything needed in session (no disk persistence)
-    req.session.pending = {
-      cardId,
-      code,
-      codeExpiry: Date.now() + config.verificationCodeExpiry,
-      senderEmail: senderEmail || null,
-      senderName: effectiveSenderName,
-      senderDiscord: senderDiscordTrimmed || null,
-      senderDiscordUserId: req.session.discordUser ? req.session.discordUser.id : null,
-      verifyViaDiscord: usingDiscord,
-      recipientEmail: recipientEmail || null,
-      recipientDiscord: recipientDiscord || null,
-      cardText: safeCardText,
-      fontFamily: fontFamily || 'RodinNTLG',
-      textColor: textColor || '#111111',
-      miiData,
-      generatedCard: cardBuffer.toString('base64')
-    };
+      const cardImageFile = req.files && req.files.cardImage && req.files.cardImage[0];
+      const miiFile = req.files && req.files.miiFile && req.files.miiFile[0];
 
-    // Send verification code via Discord DM or email
-    if (usingDiscord) {
-      if (senderDiscordTrimmed || req.session.discordUser) {
-        const oauthUserId = req.session.discordUser ? req.session.discordUser.id : null;
-        const dmResult = await sendVerificationCodeViaDM(senderDiscordTrimmed, code, oauthUserId);
-        if (!dmResult.success) {
-          delete req.session.pending;
-          req.session.formError = `Could not send verification code via Discord: ${dmResult.error}`;
+      const usingDiscord = deliveryMethod === 'discord';
+
+      // Discord method requires OAuth authorization
+      if (usingDiscord) {
+        const discordOAuthEnabled = !!(
+          config.discord &&
+          config.discord.enabled &&
+          config.discord.clientId &&
+          config.discord.clientSecret &&
+          config.discord.redirectUri
+        );
+        if (discordOAuthEnabled && !req.session.discordUser) {
+          req.session.formError = 'You must log in with Discord before sending via Discord.';
           return res.redirect('/');
         }
+      }
+
+      // Basic validation - name required for email mode; for Discord, always use OAuth session
+      let effectiveSenderName;
+      if (usingDiscord) {
+        // Display name comes exclusively from the OAuth session
+        effectiveSenderName =
+          (req.session.discordUser ? req.session.discordUser.displayName : '') ||
+          (senderName || '').trim() ||
+          'Someone';
       } else {
-        // Discord mode but no senderDiscord and no OAuth session: cannot send verification
-        req.session.formError = 'Enter your Discord username so the bot can DM you the verification code.';
+        if (!senderName || senderName.trim().length === 0) {
+          req.session.formError = 'Sender name is required.';
+          return res.redirect('/');
+        }
+        effectiveSenderName = senderName.trim();
+      }
+
+      // For Discord, sender username comes exclusively from OAuth session
+      const senderDiscordTrimmed =
+        usingDiscord && req.session.discordUser ? req.session.discordUser.username : '';
+      if (!usingDiscord) {
+        if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+          req.session.formError = 'A valid sender email is required for verification.';
+          return res.redirect('/');
+        }
+      }
+
+      if (!recipientEmail && !recipientDiscord) {
+        req.session.formError = 'Please enter a recipient email or Discord username.';
         return res.redirect('/');
       }
-    } else {
-      await sendVerificationCode(senderEmail, code, effectiveSenderName);
-    }
+      if (recipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+        req.session.formError = 'Please enter a valid recipient email address.';
+        return res.redirect('/');
+      }
 
-    res.redirect('/preview');
-  } catch (err) {
-    console.error('[POST /create]', err);
-    req.session.formError = 'Something went wrong. Please try again.';
-    res.redirect('/');
+      // SFW check on card text via external moderation API (skipped if not configured)
+      const textToCheck = (cardText || '').trim();
+      if (textToCheck) {
+        const flagged = await checkContentModeration(textToCheck);
+        if (flagged) {
+          req.session.formError = 'Please keep your message appropriate.';
+          return res.redirect('/');
+        }
+      }
+
+      // Image: uploaded file takes priority, then preset, then existing session image
+      let imageBuffer = null;
+      if (cardImageFile && cardImageFile.buffer) {
+        imageBuffer = cardImageFile.buffer;
+      } else if (presetImage) {
+        const safeName = path.basename(presetImage);
+        const presetPath = path.join(PRESETS_DIR, safeName);
+        if (fs.existsSync(presetPath)) {
+          imageBuffer = fs.readFileSync(presetPath);
+        }
+      } else if (req.session.pending && req.session.pending.originalImage) {
+        imageBuffer = Buffer.from(req.session.pending.originalImage, 'base64');
+      }
+
+      if (!imageBuffer) {
+        req.session.formError = 'Please upload an image or select a preset.';
+        return res.redirect('/');
+      }
+
+      if (recipientEmail && emailOptOuts.has(hashEmail(recipientEmail))) {
+        req.session.formError = 'That recipient has opted out of receiving PictoCards.';
+        return res.redirect('/');
+      }
+
+      const cardId = (req.session.pending && req.session.pending.cardId) || uuidv4();
+
+      // Mii: accept raw binary Mii data or a QR code image (decoded server-side)
+      let miiData = null;
+      if (miiFile && miiFile.buffer) {
+        const buf = miiFile.buffer;
+        const isImage =
+          (miiFile.mimetype && miiFile.mimetype.startsWith('image/')) ||
+          (buf[0] === 0xff && buf[1] === 0xd8) || // JPEG
+          (buf[0] === 0x89 && buf[1] === 0x50) || // PNG
+          (buf[0] === 0x47 && buf[1] === 0x49) || // GIF
+          (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
+        if (isImage) {
+          miiData = await decodeMiiQr(buf);
+        } else {
+          miiData = buf;
+        }
+      } else if (req.session.pending && req.session.pending.miiData) {
+        // Reuse existing Mii data if no new file provided
+        miiData = Buffer.from(req.session.pending.miiData, 'base64');
+      }
+
+      // Generate the card before showing the preview (before verification)
+      const safeCardText = (cardText || '').slice(0, 500);
+      const cardBuffer = await generateCard({
+        imageBuffer,
+        text: safeCardText,
+        font: fontFamily || 'RodinNTLG',
+        textColor: textColor || '#111111',
+        senderName: effectiveSenderName,
+        miiData,
+        includeDate: true
+      });
+
+      // Store everything needed in session (no disk persistence)
+      req.session.pending = {
+        cardId,
+        senderEmail: senderEmail || null,
+        senderName: effectiveSenderName,
+        senderDiscord: senderDiscordTrimmed || null,
+        senderDiscordUserId: req.session.discordUser ? req.session.discordUser.id : null,
+        verifyViaDiscord: usingDiscord,
+        recipientEmail: recipientEmail || null,
+        recipientDiscord: recipientDiscord || null,
+        cardText: safeCardText,
+        fontFamily: fontFamily || 'RodinNTLG',
+        textColor: textColor || '#111111',
+        miiData: miiData ? miiData.toString('base64') : null,
+        originalImage: imageBuffer.toString('base64'),
+        generatedCard: cardBuffer.toString('base64')
+      };
+
+      res.redirect('/preview');
+    } catch (err) {
+      console.error('[POST /create]', err);
+      req.session.formError = 'Something went wrong. Please try again.';
+      res.redirect('/');
+    }
   }
-});
+);
 
 // ── GET /preview ──────────────────────────────────────────────────────────────
 router.get('/preview', (req, res) => {
@@ -334,9 +332,40 @@ router.get('/preview', (req, res) => {
   });
 });
 
+// ── POST /verify-request ──────────────────────────────────────────────────────
+router.post('/verify-request', async (req, res) => {
+  const pending = req.session.pending;
+  if (!pending) return res.redirect('/');
+
+  try {
+    const code = generateCode();
+    pending.code = code;
+    pending.codeExpiry = Date.now() + config.verificationCodeExpiry;
+
+    if (pending.verifyViaDiscord) {
+      const dmResult = await sendVerificationCodeViaDM(
+        pending.senderDiscord,
+        code,
+        pending.senderDiscordUserId
+      );
+      if (!dmResult.success) {
+        req.session.previewSendError = `Could not send verification code via Discord: ${dmResult.error}`;
+        return res.redirect('/preview');
+      }
+    } else {
+      await sendVerificationCode(pending.senderEmail, code, pending.senderName);
+    }
+    res.redirect('/verify');
+  } catch (err) {
+    console.error('[POST /verify-request]', err);
+    req.session.previewSendError = 'Could not send verification code. Please try again.';
+    res.redirect('/preview');
+  }
+});
+
 // ── GET /verify ──────────────────────────────────────────────────────────────
 router.get('/verify', (req, res) => {
-  if (!req.session.pending) return res.redirect('/');
+  if (!req.session.pending || !req.session.pending.code) return res.redirect('/');
   const { senderEmail, verifyViaDiscord, senderDiscord } = req.session.pending;
   res.render('verify', {
     error: null,
@@ -359,9 +388,8 @@ router.post('/verify', async (req, res) => {
 
   if (!isRetry) {
     if (Date.now() > pending.codeExpiry) {
-      delete req.session.pending;
       return res.render('verify', {
-        error: 'Verification code expired. Please start over.',
+        error: 'Verification code expired. Please request a new one.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
         discordUsername: pending.senderDiscord || null,
@@ -382,7 +410,6 @@ router.post('/verify', async (req, res) => {
     // Mark code as verified for potential retry
     pending.codeVerified = true;
   }
-
   try {
     const cardBuffer = Buffer.from(pending.generatedCard, 'base64');
 
@@ -405,14 +432,28 @@ router.post('/verify', async (req, res) => {
         return res.redirect('/preview');
       }
       if (pending.senderDiscord || pending.senderDiscordUserId) {
-        sendConfirmationViaDM(pending.senderDiscord, username, cardBuffer, pending.senderDiscordUserId)
-          .catch(err => console.error('[sendConfirmationViaDM]', err));
+        sendConfirmationViaDM(
+          pending.senderDiscord,
+          username,
+          cardBuffer,
+          pending.senderDiscordUserId
+        ).catch((err) => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
-      await sendCard(pending.recipientEmail, pending.senderName, pending.cardText, cardBuffer, pending.senderEmail);
+      await sendCard(
+        pending.recipientEmail,
+        pending.senderName,
+        pending.cardText,
+        cardBuffer,
+        pending.senderEmail
+      );
       if (pending.senderEmail) {
-        sendCardConfirmation(pending.senderEmail, pending.senderName, pending.recipientEmail, cardBuffer)
-          .catch(err => console.error('[sendCardConfirmation]', err.message));
+        sendCardConfirmation(
+          pending.senderEmail,
+          pending.senderName,
+          pending.recipientEmail,
+          cardBuffer
+        ).catch((err) => console.error('[sendCardConfirmation]', err.message));
       }
     }
 

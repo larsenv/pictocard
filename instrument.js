@@ -10,6 +10,6 @@ try {
 if (config.sentryDsn) {
   Sentry.init({
     dsn: config.sentryDsn,
-    sendDefaultPii: true,
+    sendDefaultPii: true
   });
 }
