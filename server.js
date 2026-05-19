@@ -4,6 +4,7 @@ const Sentry = require('@sentry/node');
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const { rateLimit, csrf } = require('./lib/middleware');
 
 let config;
@@ -19,7 +20,13 @@ const app = express();
 
 // ── View engine ──────────────────────────────────────────────────────────────
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+const viewsPath = path.join(__dirname, 'views');
+app.set('views', viewsPath);
+
+// Verify views directory exists at startup
+if (!fs.existsSync(viewsPath)) {
+  console.error(`[Fatal] Views directory not found at: ${viewsPath}`);
+}
 
 // Trust reverse-proxy headers (needed for req.ip behind nginx/Caddy)
 app.set('trust proxy', 1);

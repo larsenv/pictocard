@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const { validateCsrf } = require('../lib/middleware');
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
@@ -147,7 +148,7 @@ router.post(
   (req, res, next) => {
     uploadFields(req, res, (err) => {
       if (err) return next(err);
-      next();
+      validateCsrf(req, res, next);
     });
   },
   async (req, res) => {
