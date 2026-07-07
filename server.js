@@ -82,8 +82,12 @@ app.use((_req, res) => {
     );
 });
 
+// ── Sentry Error Handling ────────────────────────────────────────────────────
+Sentry.setupExpressErrorHandler(app);
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  Sentry.captureException(err);
   console.error(err);
   res
     .status(500)
