@@ -4,21 +4,21 @@
    ═══════════════════════════════════════════════ */
 
 /* ── Rodin NTLG Pro (site font) ─────────────────── */
-/* Font files are served from mariocube.com (same CDN used by Discross).
-   To self-host, download the .woff2/.woff files and serve from /css/. */
+/* Self-hosted (Latin + fullwidth + kana subset, ~52KB/weight, no kanji).
+   Do not point this back at mariocube.com — self-host per-site instead. */
 @font-face {
   font-family: 'rodin';
   src:
-    url('https://mariocube.com/css/RodinNTLGPro-DB-AlphaNum.woff2') format('woff2'),
-    url('https://mariocube.com/css/RodinNTLGPro-DB-AlphaNum.woff') format('woff');
+    url('/css/RodinNTLGPro-DB-Extended.woff2') format('woff2'),
+    url('/css/RodinNTLGPro-DB-Extended.woff') format('woff');
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: 'rodin';
   src:
-    url('https://mariocube.com/css/RodinNTLGPro-B-AlphaNum.woff2') format('woff2'),
-    url('https://mariocube.com/css/RodinNTLGPro-B-AlphaNum.woff') format('woff');
+    url('/css/RodinNTLGPro-B-Extended.woff2') format('woff2'),
+    url('/css/RodinNTLGPro-B-Extended.woff') format('woff');
   font-weight: 700;
   font-display: swap;
 }
