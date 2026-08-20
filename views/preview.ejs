@@ -32,7 +32,7 @@
       </div>
 
       <div class="preview-actions">
-        <% if (typeof sendError !== 'undefined' && sendError) { %>
+        <% if (typeof sendError !== 'undefined' && sendError && canRetryDirectly) { %>
         <form action="/verify" method="POST" style="display: inline">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <input type="hidden" name="retry" value="1" />

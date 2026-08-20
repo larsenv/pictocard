@@ -170,6 +170,26 @@ router.post(
 
       const usingDiscord = deliveryMethod === 'discord';
 
+      // On a validation failure we redisplay the form. Refresh the session's
+      // pending text fields with what was just submitted (keeping any existing
+      // image/card data) so stale data from an earlier successful attempt
+      // doesn't linger in the form - or worse, get sent - instead of this one.
+      function redirectWithError(message) {
+        req.session.formError = message;
+        req.session.pending = {
+          ...(req.session.pending || {}),
+          recipientEmail: recipientEmail || null,
+          recipientDiscord: recipientDiscord || null,
+          senderName: (senderName || '').trim(),
+          senderEmail: senderEmail || null,
+          cardText: (cardText || '').slice(0, 500),
+          fontFamily: fontFamily || 'RodinNTLG',
+          textColor: textColor || '#111111',
+          verifyViaDiscord: usingDiscord
+        };
+        return res.redirect('/');
+      }
+
       // Discord method requires OAuth authorization
       if (usingDiscord) {
         const discordOAuthEnabled = !!(
@@ -180,8 +200,7 @@ router.post(
           config.discord.redirectUri
         );
         if (discordOAuthEnabled && !req.session.discordUser) {
-          req.session.formError = 'You must log in with Discord before sending via Discord.';
-          return res.redirect('/');
+          return redirectWithError('You must log in with Discord before sending via Discord.');
         }
       }
 
@@ -195,8 +214,7 @@ router.post(
           'Someone';
       } else {
         if (!senderName || senderName.trim().length === 0) {
-          req.session.formError = 'Sender name is required.';
-          return res.redirect('/');
+          return redirectWithError('Sender name is required.');
         }
         effectiveSenderName = senderName.trim();
       }
@@ -206,18 +224,15 @@ router.post(
         usingDiscord && req.session.discordUser ? req.session.discordUser.username : '';
       if (!usingDiscord) {
         if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
-          req.session.formError = 'A valid sender email is required for verification.';
-          return res.redirect('/');
+          return redirectWithError('A valid sender email is required for verification.');
         }
       }
 
       if (!recipientEmail && !recipientDiscord) {
-        req.session.formError = 'Please enter a recipient email or Discord username.';
-        return res.redirect('/');
+        return redirectWithError('Please enter a recipient email or Discord username.');
       }
       if (recipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
-        req.session.formError = 'Please enter a valid recipient email address.';
-        return res.redirect('/');
+        return redirectWithError('Please enter a valid recipient email address.');
       }
 
       // SFW check on card text via external moderation API (skipped if not configured)
@@ -225,8 +240,7 @@ router.post(
       if (textToCheck) {
         const flagged = await checkContentModeration(textToCheck);
         if (flagged) {
-          req.session.formError = 'Please keep your message appropriate.';
-          return res.redirect('/');
+          return redirectWithError('Please keep your message appropriate.');
         }
       }
 
@@ -245,13 +259,11 @@ router.post(
       }
 
       if (!imageBuffer) {
-        req.session.formError = 'Please upload an image or select a preset.';
-        return res.redirect('/');
+        return redirectWithError('Please upload an image or select a preset.');
       }
 
       if (recipientEmail && emailOptOuts.has(hashEmail(recipientEmail))) {
-        req.session.formError = 'That recipient has opted out of receiving PictoCards.';
-        return res.redirect('/');
+        return redirectWithError('That recipient has opted out of receiving PictoCards.');
       }
 
       const cardId = (req.session.pending && req.session.pending.cardId) || uuidv4();
@@ -310,6 +322,20 @@ router.post(
     } catch (err) {
       console.error('[POST /create]', err);
       req.session.formError = 'Something went wrong. Please try again.';
+      // Refresh pending text fields with this attempt's submission so the
+      // re-shown form (and any later send) reflects what was just typed,
+      // not a stale earlier attempt.
+      req.session.pending = {
+        ...(req.session.pending || {}),
+        recipientEmail: req.body.recipientEmail || null,
+        recipientDiscord: req.body.recipientDiscord || null,
+        senderName: (req.body.senderName || '').trim(),
+        senderEmail: req.body.senderEmail || null,
+        cardText: (req.body.cardText || '').slice(0, 500),
+        fontFamily: req.body.fontFamily || 'RodinNTLG',
+        textColor: req.body.textColor || '#111111',
+        verifyViaDiscord: req.body.deliveryMethod === 'discord'
+      };
       res.redirect('/');
     }
   }
@@ -329,6 +355,7 @@ router.get('/preview', (req, res) => {
     recipientDiscord: pending.recipientDiscord,
     cardText: pending.cardText,
     sendError,
+    canRetryDirectly: !!pending.codeVerified,
     domain: config.domain
   });
 });
