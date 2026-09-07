@@ -8,7 +8,31 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const sharp = require('sharp');
 const { validateCsrf } = require('../lib/middleware');
+
+// Reject decompression bombs: images whose pixel dimensions blow up memory/CPU
+// even though the compressed file is under the multer size limit.
+const MAX_IMAGE_DIMENSION = 6000; // px per side
+const MAX_IMAGE_PIXELS = 40_000_000; // 40 megapixels
+
+/**
+ * Cheaply read image header metadata (no full decode) and confirm the pixel
+ * dimensions are within safe bounds.
+ * @param {Buffer} buffer
+ * @returns {Promise<boolean>}
+ */
+async function isImageWithinLimits(buffer) {
+  try {
+    const meta = await sharp(buffer).metadata();
+    if (!meta.width || !meta.height) return false;
+    if (meta.width > MAX_IMAGE_DIMENSION || meta.height > MAX_IMAGE_DIMENSION) return false;
+    if (meta.width * meta.height > MAX_IMAGE_PIXELS) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
@@ -309,6 +333,11 @@ router.post(
       // Image: uploaded file takes priority, then preset, then existing session image
       let imageBuffer = null;
       if (cardImageFile && cardImageFile.buffer) {
+        if (!(await isImageWithinLimits(cardImageFile.buffer))) {
+          return redirectWithError(
+            'That image is too large or not a valid image. Please use one under 6000×6000 pixels.'
+          );
+        }
         imageBuffer = cardImageFile.buffer;
       } else if (presetImage) {
         const safeName = path.basename(presetImage);
@@ -341,6 +370,11 @@ router.post(
           (buf[0] === 0x47 && buf[1] === 0x49) || // GIF
           (buf[0] === 0x52 && buf[1] === 0x49); // WebP/RIFF
         if (isImage) {
+          if (!(await isImageWithinLimits(buf))) {
+            return redirectWithError(
+              'That Mii QR image is too large or invalid. Please use one under 6000×6000 pixels.'
+            );
+          }
           miiData = await decodeMiiQr(buf);
         } else {
           miiData = buf;
