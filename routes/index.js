@@ -105,8 +105,13 @@ function getPresetImages() {
 }
 
 function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // Cryptographically secure 6-digit code (100000-999999)
+  return String(crypto.randomInt(100000, 1000000));
 }
+
+// Maximum wrong code entries allowed per pending verification before the
+// code is invalidated and a new one must be requested.
+const MAX_CODE_ATTEMPTS = 5;
 
 // ── GET / ────────────────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -137,6 +142,63 @@ const createLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+// Window used by all mail/DM-sending throttles below.
+const MAIL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Build a rate limiter. When a custom keyGenerator is supplied we disable
+ * express-rate-limit's built-in validations (they only understand IP-based
+ * keys and would warn about our identity-based keys).
+ */
+function makeLimiter({ windowMs, max, message, keyGenerator }) {
+  return rateLimit({
+    windowMs,
+    max,
+    message,
+    standardHeaders: true,
+    legacyHeaders: false,
+    ...(keyGenerator ? { keyGenerator, validate: false } : {})
+  });
+}
+
+// ── Throttles for verification-code delivery (prevents email/DM bombing) ──────
+// Per-IP cap on requesting a new verification code.
+const verifyRequestIpLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 5,
+  message: 'Too many verification requests. Please wait a few minutes and try again.'
+});
+// Per-target cap so one address/username can't be bombed from rotating IPs.
+const verifyRequestTargetLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 5,
+  message: 'Too many verification requests for this recipient. Please wait a few minutes.',
+  keyGenerator: (req) => {
+    const p = req.session && req.session.pending;
+    const target = p && (p.senderEmail || p.senderDiscordUserId || p.senderDiscord);
+    return target ? `vreq:${String(target).toLowerCase()}` : `vreq-ip:${req.ip}`;
+  }
+});
+
+// ── Throttles for the actual card send (prevents card/DM spam) ────────────────
+// Per-IP cap on send attempts (also throttles verification-code brute force).
+const sendIpLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 10,
+  message: 'Too many attempts. Please wait a few minutes and try again.'
+});
+// Per-recipient cap so a single victim can't be spammed from rotating IPs.
+const sendRecipientLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 5,
+  message: 'Too many cards to this recipient. Please wait a few minutes.',
+  keyGenerator: (req) => {
+    const p = req.session && req.session.pending;
+    const target = p && (p.recipientDiscord || p.recipientEmail);
+    return target ? `send:${String(target).toLowerCase()}` : `send-ip:${req.ip}`;
+  }
+});
+
 const uploadFields = upload.fields([
   { name: 'cardImage', maxCount: 1 },
   { name: 'miiFile', maxCount: 1 }
@@ -361,7 +423,7 @@ router.get('/preview', (req, res) => {
 });
 
 // ── POST /verify-request ──────────────────────────────────────────────────────
-router.post('/verify-request', async (req, res) => {
+router.post('/verify-request', verifyRequestIpLimiter, verifyRequestTargetLimiter, async (req, res) => {
   const pending = req.session.pending;
   if (!pending) return res.redirect('/');
 
@@ -369,6 +431,7 @@ router.post('/verify-request', async (req, res) => {
     const code = generateCode();
     pending.code = code;
     pending.codeExpiry = Date.now() + config.verificationCodeExpiry;
+    pending.codeAttempts = 0;
 
     if (pending.verifyViaDiscord) {
       const dmResult = await sendVerificationCodeViaDM(
@@ -405,7 +468,7 @@ router.get('/verify', (req, res) => {
 });
 
 // ── POST /verify ─────────────────────────────────────────────────────────────
-router.post('/verify', async (req, res) => {
+router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => {
   const pending = req.session.pending;
   if (!pending) return res.redirect('/');
 
@@ -426,6 +489,19 @@ router.post('/verify', async (req, res) => {
     }
 
     if (!code || code.trim() !== pending.code) {
+      pending.codeAttempts = (pending.codeAttempts || 0) + 1;
+      // Too many wrong guesses: invalidate the code so a new one must be requested.
+      if (pending.codeAttempts >= MAX_CODE_ATTEMPTS) {
+        pending.code = null;
+        pending.codeExpiry = 0;
+        return res.render('verify', {
+          error: 'Too many incorrect attempts. Please go back and request a new code.',
+          email: pending.senderEmail,
+          verifyViaDiscord: !!pending.verifyViaDiscord,
+          discordUsername: pending.senderDiscord || null,
+          domain: config.domain
+        });
+      }
       return res.render('verify', {
         error: 'Incorrect code. Please try again.',
         email: pending.senderEmail,

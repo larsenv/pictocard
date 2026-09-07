@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const { emailOptOuts, hashEmail } = require('./index');
 const { sendOptoutConfirmation, sendOptoutVerificationCode } = require('../lib/emailService');
@@ -13,10 +14,46 @@ try {
 }
 
 const CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const MAIL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_CODE_ATTEMPTS = 5;
 
 function generateCode() {
   return String(crypto.randomInt(100000, 1000000));
 }
+
+function makeLimiter({ windowMs, max, message, keyGenerator }) {
+  return rateLimit({
+    windowMs,
+    max,
+    message,
+    standardHeaders: true,
+    legacyHeaders: false,
+    ...(keyGenerator ? { keyGenerator, validate: false } : {})
+  });
+}
+
+// Per-IP cap on requesting an opt-out/opt-in verification email.
+const requestIpLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 5,
+  message: 'Too many requests. Please wait a few minutes and try again.'
+});
+// Per-address cap so a single mailbox can't be bombed from rotating IPs.
+const requestTargetLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 5,
+  message: 'Too many requests for this address. Please wait a few minutes.',
+  keyGenerator: (req) => {
+    const email = req.body && req.body.email;
+    return email ? `optout:${String(email).trim().toLowerCase()}` : `optout-ip:${req.ip}`;
+  }
+});
+// Per-IP cap on code submission (throttles brute-force of the 6-digit code).
+const verifyIpLimiter = makeLimiter({
+  windowMs: MAIL_WINDOW_MS,
+  max: 10,
+  message: 'Too many attempts. Please wait a few minutes and try again.'
+});
 
 const VALID_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,7 +72,7 @@ router.get('/', (req, res) => {
 
 // ── POST /optout/request ──────────────────────────────────────────────────────
 // Collect email + action, send verification code, show code entry form
-router.post('/request', async (req, res) => {
+router.post('/request', requestIpLimiter, requestTargetLimiter, async (req, res) => {
   const { email, action } = req.body;
   const safeAction = action === 'optin' ? 'optin' : 'optout';
 
@@ -56,7 +93,8 @@ router.post('/request', async (req, res) => {
     email: email.trim().toLowerCase(),
     action: safeAction,
     code,
-    expires: Date.now() + CODE_EXPIRY_MS
+    expires: Date.now() + CODE_EXPIRY_MS,
+    attempts: 0
   };
 
   try {
@@ -87,7 +125,7 @@ router.post('/request', async (req, res) => {
 
 // ── POST /optout/verify ───────────────────────────────────────────────────────
 // Check code and perform the opt-out/opt-in action
-router.post('/verify', async (req, res) => {
+router.post('/verify', verifyIpLimiter, async (req, res) => {
   const { code } = req.body;
   const pending = req.session.optoutPending;
 
@@ -105,6 +143,20 @@ router.post('/verify', async (req, res) => {
   }
 
   if (!code || code.trim() !== pending.code) {
+    pending.attempts = (pending.attempts || 0) + 1;
+    // Too many wrong guesses: discard the pending request entirely.
+    if (pending.attempts >= MAX_CODE_ATTEMPTS) {
+      delete req.session.optoutPending;
+      return res.render('optout', {
+        step: 'form',
+        action: 'optout',
+        success: false,
+        doneAction: 'optout',
+        error: 'Too many incorrect attempts. Please start again.',
+        email: '',
+        domain: config.domain
+      });
+    }
     return res.render('optout', {
       step: 'verify',
       action: pending.action,
