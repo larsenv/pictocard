@@ -10,6 +10,7 @@ try {
 if (config.sentryDsn) {
   Sentry.init({
     dsn: config.sentryDsn,
-    sendDefaultPii: true
+    // Do not attach user IPs / request PII to error reports (minimal-data policy).
+    sendDefaultPii: false
   });
 }
