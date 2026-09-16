@@ -249,7 +249,7 @@ router.post(
         textColor,
         presetImage,
         senderEmail
-      } = req.body;
+      } = req.body || {};
 
       const cardImageFile = req.files && req.files.cardImage && req.files.cardImage[0];
       const miiFile = req.files && req.files.miiFile && req.files.miiFile[0];
@@ -421,16 +421,17 @@ router.post(
       // Refresh pending text fields with this attempt's submission so the
       // re-shown form (and any later send) reflects what was just typed,
       // not a stale earlier attempt.
+      const body = req.body || {};
       req.session.pending = {
         ...(req.session.pending || {}),
-        recipientEmail: req.body.recipientEmail || null,
-        recipientDiscord: req.body.recipientDiscord || null,
-        senderName: (req.body.senderName || '').trim(),
-        senderEmail: req.body.senderEmail || null,
-        cardText: (req.body.cardText || '').slice(0, 500),
-        fontFamily: req.body.fontFamily || 'RodinNTLG',
-        textColor: req.body.textColor || '#111111',
-        verifyViaDiscord: req.body.deliveryMethod === 'discord'
+        recipientEmail: body.recipientEmail || null,
+        recipientDiscord: body.recipientDiscord || null,
+        senderName: (body.senderName || '').trim(),
+        senderEmail: body.senderEmail || null,
+        cardText: (body.cardText || '').slice(0, 500),
+        fontFamily: body.fontFamily || 'RodinNTLG',
+        textColor: body.textColor || '#111111',
+        verifyViaDiscord: body.deliveryMethod === 'discord'
       };
       res.redirect('/');
     }
@@ -506,7 +507,7 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
   const pending = req.session.pending;
   if (!pending) return res.redirect('/');
 
-  const { code, retry } = req.body;
+  const { code, retry } = req.body || {};
 
   // If this is a retry (Discord delivery failed but code was already verified)
   const isRetry = retry === '1' && pending.codeVerified;

@@ -73,7 +73,7 @@ router.get('/', (req, res) => {
 // ── POST /optout/request ──────────────────────────────────────────────────────
 // Collect email + action, send verification code, show code entry form
 router.post('/request', requestIpLimiter, requestTargetLimiter, async (req, res) => {
-  const { email, action } = req.body;
+  const { email, action } = req.body || {};
   const safeAction = action === 'optin' ? 'optin' : 'optout';
 
   if (!email || !VALID_EMAIL.test(email.trim())) {
@@ -126,7 +126,7 @@ router.post('/request', requestIpLimiter, requestTargetLimiter, async (req, res)
 // ── POST /optout/verify ───────────────────────────────────────────────────────
 // Check code and perform the opt-out/opt-in action
 router.post('/verify', verifyIpLimiter, async (req, res) => {
-  const { code } = req.body;
+  const { code } = req.body || {};
   const pending = req.session.optoutPending;
 
   if (!pending || Date.now() > pending.expires) {
