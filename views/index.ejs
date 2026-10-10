@@ -220,10 +220,14 @@
             <div class="field">
               <label>Letterhead</label>
               <details class="letterhead-details">
-                <summary>Choose a letterhead</summary>
-                <label class="letterhead-default"
-                  ><input type="radio" name="letterhead" value="" checked /> Default (no letterhead)</label
-                >
+                <summary>Choose a letterhead (default if none)</summary>
+                <h4 class="letterhead-group">Default</h4>
+                <div class="letterhead-gallery">
+                  <label class="preset-option" title="Default (no letterhead)">
+                    <input type="radio" name="letterhead" value="" checked />
+                    <img src="/images/letterheads/default.png" alt="Default letterhead" loading="lazy" />
+                  </label>
+                </div>
                 <% letterheadGroups.forEach(function(g) { %>
                 <h4 class="letterhead-group"><%= g.group %></h4>
                 <div class="letterhead-gallery">
