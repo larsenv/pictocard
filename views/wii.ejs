@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('partials/head', { 
+      metaDescription: 'Add PictoCard to your Wii', 
+      ogTitle: 'PictoCard - Add PictoCard to your Wii', 
+      ogDescription: 'Add PictoCard to your Wii address book', 
+      ogUrl: domain + '/wii', 
+      canonicalUrl: domain + '/wii', 
+      metaRobots: 'noindex, nofollow' 
+    }) %>
+  </head>
+  <body>
+    <%- include('partials/header') %>
+
+    <main class="container container-narrow">
+      <section class="hero">
+        <h1>Add PictoCard to your Wii</h1>
+        <p class="hero-sub">
+          Enter your Wii Number and we'll send a one-time friend request so you can receive
+          PictoCards on your Message Board.
+        </p>
+      </section>
+
+      <% if (error) { %>
+      <div class="alert alert-error"><%= error %></div>
+      <% } %> <% if (message) { %>
+      <div class="alert alert-success"><%= message %></div>
+      <% } %> <% if (enabled) { %>
+      <form action="/wii" method="POST" class="card-form verify-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="field">
+          <label for="friendCode">Wii Number</label>
+          <input
+            type="text"
+            id="friendCode"
+            name="friendCode"
+            inputmode="numeric"
+            maxlength="19"
+            placeholder="1234 5678 9012 3456"
+            required
+          />
+        </div>
+
+        <% if (turnstileSiteKey) { %>
+        <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="dark"></div>
+        <% } %>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Send Friend Request</button>
+          <a href="/" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+      <% } %>
+    </main>
+
+    <%- include('partials/footer') %> <% if (turnstileSiteKey) { %>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <% } %>
+  </body>
+</html>

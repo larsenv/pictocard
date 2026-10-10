@@ -27,6 +27,13 @@ module.exports = {
   // Get a key at https://platform.openai.com/api-keys
   moderationApiKey: '',
 
+  // Cloudflare Turnstile captcha (card form and /wii friend requests).
+  // Leave empty to disable. Can also be set via TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY.
+  turnstile: {
+    siteKey: '',
+    secretKey: ''
+  },
+
   // Twemoji CDN base URL for emoji images rendered on cards.
   // Update the version tag to access newer emoji sets.
   // See https://github.com/twitter/twemoji for available releases.

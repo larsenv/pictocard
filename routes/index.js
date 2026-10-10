@@ -37,6 +37,8 @@ const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
 const { decodeMiiQr } = require('../lib/miiQr');
+const { verifyTurnstile, siteKey: turnstileSiteKey } = require('../lib/turnstile');
+const { isVerified: isEmailVerified, markVerified: markEmailVerified } = require('../lib/verifiedEmails');
 const {
   sendVerificationCodeViaDM,
   sendConfirmationViaDM,
@@ -153,7 +155,8 @@ router.get('/', (req, res) => {
       config.discord.redirectUri
     ),
     domain: config.domain,
-    pending: req.session.pending || null
+    pending: req.session.pending || null,
+    turnstileSiteKey: turnstileSiteKey()
   });
   delete req.session.formError;
 });
@@ -274,6 +277,11 @@ router.post(
           verifyViaDiscord: usingDiscord
         };
         return res.redirect('/');
+      }
+
+      // Turnstile captcha guards every submission (email and Discord alike).
+      if (!(await verifyTurnstile(req.body && req.body['cf-turnstile-response'], req.ip))) {
+        return redirectWithError('Captcha verification failed. Please try again.');
       }
 
       // Discord method requires OAuth authorization
@@ -414,6 +422,18 @@ router.post(
         generatedCard: cardBuffer.toString('base64')
       };
 
+      // Email verification is a one-time step: a signed-in Discord user who has
+      // already verified this sender address may skip the emailed code. The
+      // Turnstile check above is the guard on this path.
+      if (
+        !usingDiscord &&
+        req.session.discordUser &&
+        isEmailVerified(req.session.discordUser.id, senderEmail)
+      ) {
+        req.session.pending.codeVerified = true;
+        req.session.pending.skipVerify = true;
+      }
+
       res.redirect('/preview');
     } catch (err) {
       console.error('[POST /create]', err);
@@ -453,6 +473,7 @@ router.get('/preview', (req, res) => {
     cardText: pending.cardText,
     sendError,
     canRetryDirectly: !!pending.codeVerified,
+    skipVerify: !!pending.skipVerify,
     domain: config.domain
   });
 });
@@ -548,6 +569,14 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
 
     // Mark code as verified for potential retry
     pending.codeVerified = true;
+    // Remember the address for this Discord account so it is a one-time step
+    if (!pending.verifyViaDiscord && req.session.discordUser) {
+      try {
+        markEmailVerified(req.session.discordUser.id, pending.senderEmail);
+      } catch (err) {
+        console.error('[verifiedEmails]', err.message);
+      }
+    }
   }
   try {
     const cardBuffer = Buffer.from(pending.generatedCard, 'base64');

@@ -63,6 +63,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', require('./routes/index'));
 app.use('/discord', require('./routes/discord'));
 app.use('/optout', require('./routes/optout'));
+app.use('/wii', require('./routes/wii'));
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

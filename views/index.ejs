@@ -270,6 +270,10 @@
           </div>
         </fieldset>
 
+        <% if (turnstileSiteKey) { %>
+        <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="dark"></div>
+        <% } %>
+
         <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
       </form>
 
@@ -284,10 +288,14 @@
           deliver your card straight to a Wii Message Board. The receipient must have
           mail@pictocard.net registered in their address book in order to receive your card
         </p>
+        <p><a href="/wii">Add PictoCard to your Wii's address book &rarr;</a></p>
       </aside>
     </main>
 
     <%- include('partials/footer') %>
+    <% if (turnstileSiteKey) { %>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <% } %>
 
     <script>
       // Character counter

@@ -38,6 +38,12 @@
           <input type="hidden" name="retry" value="1" />
           <button type="submit" class="btn btn-primary btn-lg">Retry Send 🔄</button>
         </form>
+        <% } else if (skipVerify) { %>
+        <form action="/verify" method="POST" style="display: inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <input type="hidden" name="retry" value="1" />
+          <button type="submit" class="btn btn-primary btn-lg">Send 🎉</button>
+        </form>
         <% } else { %>
         <form action="/verify-request" method="POST" style="display: inline">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
