@@ -185,10 +185,10 @@
             </div>
 
             <div class="field">
-              <label for="wiiMii">Mii (Optional)</label>
+              <label for="wiiMii">Wii Face (Optional)</label>
               <input type="file" id="wiiMii" name="wiiMii" />
               <span class="field-hint"
-                >A Wii Mii file (74 bytes, or 76 with the checksum). It shows as your face on the letter.</span
+                >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter.</span
               >
             </div>
 
@@ -380,7 +380,7 @@
           <legend>Optional Extras</legend>
 
           <div class="field">
-            <label for="miiFile">Mii File</label>
+            <label for="miiFile">Mii on the PictoCard</label>
             <input type="file" id="miiFile" name="miiFile" />
           </div>
         </fieldset>
@@ -440,9 +440,9 @@
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
         if (fontRow) fontRow.style.display = showCard ? '' : 'none';
-        // Wii mail has its own Mii field
+        // The Mii File extra is the Mii drawn on a PictoCard (separate from the Wii Face)
         const extras = document.getElementById('extrasGroup');
-        if (extras) extras.style.display = wii ? 'none' : '';
+        if (extras) extras.style.display = showCard ? '' : 'none';
         const imgField = document.getElementById('wiiImageField');
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
