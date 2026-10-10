@@ -286,6 +286,26 @@ async function createWiiPending(req, res, o) {
       if (fs.existsSync(presetPath)) imageBuffer = fs.readFileSync(presetPath);
     }
     if (!imageBuffer) return redirectWithError('Please upload an image or select a preset for the PictoCard.');
+    // Mii on the PictoCard: 3DS/Wii U QR code image or raw Mii data, as in the email flow
+    let cardMii = null;
+    const cardMiiFile = files.miiFile && files.miiFile[0];
+    if (cardMiiFile && cardMiiFile.buffer) {
+      const buf = cardMiiFile.buffer;
+      const isImage =
+        (cardMiiFile.mimetype && cardMiiFile.mimetype.startsWith('image/')) ||
+        (buf[0] === 0xff && buf[1] === 0xd8) ||
+        (buf[0] === 0x89 && buf[1] === 0x50) ||
+        (buf[0] === 0x47 && buf[1] === 0x49) ||
+        (buf[0] === 0x52 && buf[1] === 0x49);
+      if (isImage) {
+        if (!(await isImageWithinLimits(buf))) {
+          return redirectWithError('That Mii QR image is too large or invalid. Please use one under 6000×6000 pixels.');
+        }
+        cardMii = await decodeMiiQr(buf);
+      } else {
+        cardMii = buf;
+      }
+    }
     const card = await generateCard({
       imageBuffer,
       // Own card text if given, otherwise the letter's message
@@ -293,7 +313,7 @@ async function createWiiPending(req, res, o) {
       font: o.fontFamily || 'RodinNTLG',
       textColor: o.textColor || '#111111',
       senderName: o.effectiveSenderName,
-      miiData: mii, // the same Mii is also sent in the mail header
+      miiData: cardMii, // the Mii drawn on the card (separate from the Wii Face)
       includeDate: true
     });
     jpeg = await wiiMail.toBaselineJpeg(card);
