@@ -608,10 +608,10 @@ input[type='color'] {
   /* JS toggles display; spacing between stacked fields */
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
-.tab-panel .btn {
-  align-self: stretch;
+.tab-panel .field .btn {
+  margin-top: 8px;
 }
 
 .verify-form {
