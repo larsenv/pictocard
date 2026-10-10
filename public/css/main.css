@@ -816,3 +816,18 @@ input[type='color'] {
   display: flex;
   justify-content: center;
 }
+
+/* Spacing between stacked blocks on single-column pages (e.g. /wii, /verify) */
+.container-narrow .alert,
+.container-narrow .wiilink-notice {
+  margin: 0 0 20px;
+}
+.container-narrow .hero {
+  margin-bottom: 20px;
+}
+.verify-form {
+  gap: 16px;
+}
+.card-form > .cf-turnstile {
+  margin-bottom: 20px;
+}
