@@ -434,7 +434,7 @@ router.post(
       if (usingWii) {
         if (!wc24Config()) return redirectWithError("Wii delivery isn't set up yet. Please check back soon.");
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
-        if (senderWiiCode && !isFriendCode(senderWiiCode)) return redirectWithError('Your Wii Number must be 16 digits.');
+        if (!isFriendCode(senderWiiCode)) return redirectWithError('Enter your 16-digit Wii Number.');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');
       } else if (!recipientEmail && !recipientDiscord) {
         return redirectWithError('Please enter a recipient email or Discord username.');

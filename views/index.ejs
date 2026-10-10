@@ -175,7 +175,7 @@
             </div>
 
             <div class="field">
-              <label for="senderWii">Your Wii Number (optional)</label>
+              <label for="senderWii">Your Wii Number</label>
               <input
                 type="text"
                 id="senderWii"
@@ -442,6 +442,7 @@
         if (wiiNum) wiiNum.required = wii;
         const senderWiiInput = document.getElementById('senderWii');
         // Wii mail needs no email address and the name is optional
+        if (senderWiiInput) senderWiiInput.required = wii;
         const emailField = document.getElementById('senderEmailField');
         const emailInput = document.getElementById('senderEmail');
         const nameInput = document.getElementById('senderName');
