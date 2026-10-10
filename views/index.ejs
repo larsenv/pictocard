@@ -368,7 +368,7 @@
         </fieldset>
 
         <!-- ── Optional extras ── -->
-        <fieldset class="form-group extras">
+        <fieldset class="form-group extras" id="extrasGroup">
           <legend>Optional Extras</legend>
 
           <div class="field">
@@ -432,6 +432,9 @@
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
         if (fontRow) fontRow.style.display = showCard ? '' : 'none';
+        // Wii mail has its own Mii field
+        const extras = document.getElementById('extrasGroup');
+        if (extras) extras.style.display = wii ? 'none' : '';
         const imgField = document.getElementById('wiiImageField');
         const cardHint = document.getElementById('wiiCardHint');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
