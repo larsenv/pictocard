@@ -810,3 +810,9 @@ input[type='color'] {
     font-size: 0.78rem;
   }
 }
+
+/* Center the Cloudflare Turnstile widget */
+.cf-turnstile {
+  display: flex;
+  justify-content: center;
+}
