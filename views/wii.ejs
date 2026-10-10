@@ -17,10 +17,22 @@
       <section class="hero">
         <h1>Add PictoCard to your Wii</h1>
         <p class="hero-sub">
-          Enter your Wii Number and we'll send a one-time friend request so you can receive
-          PictoCards on your Message Board.
+          To receive PictoCards on your Wii Message Board, your Wii and PictoCard need to be
+          friends first. You only have to do this once.
         </p>
       </section>
+
+      <% if (pictocardWii) { %>
+      <aside class="wiilink-notice">
+        <h3>PictoCard's Wii Number</h3>
+        <p><code style="font-size: 1.4rem; letter-spacing: 0.05em"><%= pictocardWii %></code></p>
+        <p>
+          Prefer to do it yourself? On your Wii, open the Message Board, then
+          <strong>Address Book</strong>, and add this number as a friend. Otherwise, enter your own
+          Wii Number below and we'll send the friend request to your Wii for you.
+        </p>
+      </aside>
+      <% } %>
 
       <% if (error) { %>
       <div class="alert alert-error"><%= error %></div>
@@ -30,7 +42,7 @@
       <form action="/wii" method="POST" class="card-form verify-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <div class="field">
-          <label for="friendCode">Wii Number</label>
+          <label for="friendCode">Your Wii Number</label>
           <input
             type="text"
             id="friendCode"
@@ -47,7 +59,7 @@
         <% } %>
 
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Send Friend Request</button>
+          <button type="submit" class="btn btn-primary">Send Me a Friend Request</button>
           <a href="/" class="btn btn-secondary">Back</a>
         </div>
       </form>
