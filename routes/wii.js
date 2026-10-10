@@ -41,7 +41,7 @@ router.post('/', limiter, async (req, res) => {
   if (!wc24Config()) return render(res, { error: "Wii delivery isn't set up yet. Please check back soon." });
 
   const body = req.body || {};
-  const code = String(body.friendCode || '').replace(/[\s-]/g, '');
+  const code = String(body.friendCode || body.recipientWii || '').replace(/[\s-]/g, '');
   if (!isFriendCode(code)) {
     return render(res, { error: 'Enter your 16-digit Wii Number.' });
   }
