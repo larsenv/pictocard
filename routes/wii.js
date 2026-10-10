@@ -25,6 +25,7 @@ function render(res, extra = {}) {
     domain: config.domain,
     turnstileSiteKey: siteKey(),
     enabled: !!wc24Config(),
+    pictocardWii: wc24Config() ? wc24Config().sender.replace(/(\d{4})(?=\d)/g, '$1 ') : null,
     error: null,
     message: null,
     ...extra
