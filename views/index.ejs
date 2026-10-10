@@ -44,6 +44,7 @@
         id="cardForm"
       >
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <% var discordTab = !!(pending && pending.verifyViaDiscord); var wiiTab = !!(pending && pending.wiiTab); %>
 
         <!-- ── Recipient (tab switcher) ── -->
         <fieldset class="form-group">
@@ -52,7 +53,7 @@
           <div class="delivery-tabs">
             <button
               type="button"
-              class="tab-btn <%= (pending && pending.verifyViaDiscord) ? '' : 'tab-active' %>"
+              class="tab-btn <%= (discordTab || wiiTab) ? '' : 'tab-active' %>"
               id="tabEmail"
               onclick="switchTab('email')"
             >
@@ -60,18 +61,26 @@
             </button>
             <button
               type="button"
-              class="tab-btn <%= (pending && pending.verifyViaDiscord) ? 'tab-active' : '' %>"
+              class="tab-btn <%= discordTab ? 'tab-active' : '' %>"
               id="tabDiscord"
               data-discord-auth="<%= (discordOAuthEnabled && !discordUser) ? '0' : '1' %>"
             >
               💬 Send via Discord<% if (discordOAuthEnabled && !discordUser) { %> 🔒<% } %>
+            </button>
+            <button
+              type="button"
+              class="tab-btn <%= wiiTab ? 'tab-active' : '' %>"
+              id="tabWii"
+              onclick="switchTab('wii')"
+            >
+              📡 Send to a Wii
             </button>
           </div>
 
           <div
             id="panelEmail"
             class="tab-panel"
-            style="<%= (pending && pending.verifyViaDiscord) ? 'display:none' : '' %>"
+            style="<%= (discordTab || wiiTab) ? 'display:none' : '' %>"
           >
             <div class="field">
               <label for="recipientEmail">Recipient Email Address</label>
@@ -139,13 +148,95 @@
               >
             </div>
           </div>
+
+          <div
+            id="panelWii"
+            class="tab-panel"
+            style="<%= wiiTab ? '' : 'display:none' %>"
+          >
+            <% if (!wiiEnabled) { %>
+            <p class="field-hint">Sending to a Wii isn't available right now.</p>
+            <% } else { %>
+            <div class="field">
+              <label for="recipientWii">Recipient Wii Number</label>
+              <input
+                type="text"
+                id="recipientWii"
+                name="recipientWii"
+                inputmode="numeric"
+                maxlength="19"
+                placeholder="1234 5678 9012 3456"
+                autocomplete="off"
+                value="<%= (pending && pending.recipientWii) || '' %>"
+              />
+              <span class="field-hint"
+                >The recipient must have added PictoCard to their Wii's address book.
+                <a href="/wii">Send them a friend request</a>.</span
+              >
+            </div>
+
+            <div class="field">
+              <label for="wiiMii">Mii (optional)</label>
+              <input type="file" id="wiiMii" name="wiiMii" />
+              <span class="field-hint"
+                >A Wii Mii file of exactly 74 bytes. It shows as your face on the letter.</span
+              >
+            </div>
+
+            <div class="field">
+              <label>Attachment (optional)</label>
+              <div class="radio-row">
+                <label><input type="radio" name="wiiAttach" value="none" checked /> None</label>
+                <label><input type="radio" name="wiiAttach" value="image" /> A picture</label>
+                <label><input type="radio" name="wiiAttach" value="card" /> A PictoCard</label>
+              </div>
+              <div id="wiiImageField" style="display: none">
+                <input
+                  type="file"
+                  id="wiiImage"
+                  name="wiiImage"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                />
+                <span class="field-hint"
+                  >JPEG, PNG, GIF or WebP - converted to a baseline JPEG so the Wii can display
+                  it.</span
+                >
+              </div>
+              <span class="field-hint" id="wiiCardHint" style="display: none"
+                >Uses the Card Image, message and font below.</span
+              >
+            </div>
+
+            <% if (letterheadGroups && letterheadGroups.length > 0) { %>
+            <div class="field">
+              <label>Letterhead</label>
+              <details class="letterhead-details">
+                <summary>Choose a letterhead</summary>
+                <label class="letterhead-default"
+                  ><input type="radio" name="letterhead" value="" checked /> Default (no letterhead)</label
+                >
+                <% letterheadGroups.forEach(function(g) { %>
+                <h4 class="letterhead-group"><%= g.group %></h4>
+                <div class="letterhead-gallery">
+                  <% g.items.forEach(function(l) { %>
+                  <label class="preset-option" title="<%= l.name %>">
+                    <input type="radio" name="letterhead" value="<%= l.id %>" />
+                    <img src="<%= l.preview %>" alt="<%= l.name %>" loading="lazy" />
+                  </label>
+                  <% }); %>
+                </div>
+                <% }); %>
+              </details>
+            </div>
+            <% } %> <% } %>
+          </div>
         </fieldset>
 
         <input
           type="hidden"
           name="deliveryMethod"
           id="deliveryMethod"
-          value="<%= (pending && pending.verifyViaDiscord) ? 'discord' : 'email' %>"
+          value="<%= discordTab ? 'discord' : (wiiTab ? 'wii' : 'email') %>"
         />
 
         <!-- ── Sender ── -->
@@ -185,7 +276,7 @@
         </fieldset>
 
         <!-- ── Image ── -->
-        <fieldset class="form-group">
+        <fieldset class="form-group" id="cardImageGroup">
           <legend>Card Image</legend>
 
           <div class="field">
@@ -233,7 +324,7 @@
             ><%= (pending && pending.cardText) || '' %></textarea>
           </div>
 
-          <div class="field-row">
+          <div class="field-row" id="fontRow">
             <div class="field field-grow">
               <label for="fontFamily">Font</label>
               <select id="fontFamily" name="fontFamily">
@@ -316,12 +407,36 @@
         });
       }
 
+      // Wii tab: show only the fields that apply
+      function applyWiiMode() {
+        const wii = document.getElementById('deliveryMethod').value === 'wii';
+        const attach = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
+        const showCard = !wii || attach === 'card';
+        const imageGroup = document.getElementById('cardImageGroup');
+        const fontRow = document.getElementById('fontRow');
+        if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
+        if (fontRow) fontRow.style.display = showCard ? '' : 'none';
+        const imgField = document.getElementById('wiiImageField');
+        const cardHint = document.getElementById('wiiCardHint');
+        if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
+        if (cardHint) cardHint.style.display = attach === 'card' ? '' : 'none';
+        const text = document.getElementById('cardText');
+        if (text) text.required = wii;
+        const wiiNum = document.getElementById('recipientWii');
+        if (wiiNum) wiiNum.required = wii;
+      }
+      document.querySelectorAll('input[name="wiiAttach"]').forEach((r) => {
+        r.addEventListener('change', applyWiiMode);
+      });
+
       // Tab switcher
       function switchTab(tab) {
         const emailPanel = document.getElementById('panelEmail');
         const discordPanel = document.getElementById('panelDiscord');
         const tabEmail = document.getElementById('tabEmail');
         const tabDiscord = document.getElementById('tabDiscord');
+        const wiiPanel = document.getElementById('panelWii');
+        const tabWii = document.getElementById('tabWii');
         const senderNameField = document.getElementById('senderNameField');
         const senderEmailField = document.getElementById('senderEmailField');
         const senderNameInput = document.getElementById('senderName');
@@ -330,11 +445,15 @@
 
         const senderFieldsGroup = document.getElementById('senderFields');
 
-        if (tab === 'email') {
-          emailPanel.style.display = '';
+        if (wiiPanel) wiiPanel.style.display = tab === 'wii' ? '' : 'none';
+        if (tabWii) tabWii.classList.toggle('tab-active', tab === 'wii');
+
+        if (tab === 'email' || tab === 'wii') {
+          emailPanel.style.display = tab === 'email' ? '' : 'none';
           discordPanel.style.display = 'none';
-          tabEmail.classList.add('tab-active');
+          tabEmail.classList.toggle('tab-active', tab === 'email');
           tabDiscord.classList.remove('tab-active');
+          if (tab === 'wii') document.getElementById('recipientEmail').value = '';
           // Clear discord fields to prevent accidental submission
           document.getElementById('recipientDiscord').value = '';
           // Show name and email fields - both required for email
@@ -343,7 +462,7 @@
           if (senderEmailField) senderEmailField.style.display = '';
           if (senderNameInput) senderNameInput.required = true;
           if (senderEmailInput) senderEmailInput.required = true;
-          if (deliveryMethod) deliveryMethod.value = 'email';
+          if (deliveryMethod) deliveryMethod.value = tab;
         } else {
           emailPanel.style.display = 'none';
           discordPanel.style.display = '';
@@ -359,7 +478,9 @@
           if (senderEmailInput) senderEmailInput.required = false;
           if (deliveryMethod) deliveryMethod.value = 'discord';
         }
+        applyWiiMode();
       }
+      applyWiiMode();
 
       // Discord tab click - redirect to login if not authorized, otherwise switch tabs
       (function () {

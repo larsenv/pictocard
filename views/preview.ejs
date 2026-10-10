@@ -17,7 +17,8 @@
       <section class="hero">
         <h1>Preview Your Card</h1>
         <p class="hero-sub">
-          <% if (recipientEmail) { %> This card will be sent to
+          <% if (wii) { %> This letter will be sent to the Wii <strong><%= wii.recipient %></strong>.
+          <% } else if (recipientEmail) { %> This card will be sent to
           <strong><%= recipientEmail %></strong>. <% } else if (recipientDiscord) { %> This card
           will be sent to Discord user <strong><%= recipientDiscord %></strong>. <% } %>
         </p>
@@ -27,9 +28,24 @@
       <div class="alert alert-error"><%= sendError %></div>
       <% } %>
 
+      <% if (wii) { %>
+      <div class="preview-wrapper">
+        <% if (wii.letterhead) { %>
+        <img src="<%= wii.letterhead.preview %>" alt="Letterhead: <%= wii.letterhead.name %>" class="card-preview-img" />
+        <% } %>
+        <p class="hero-sub" style="white-space: pre-wrap"><%= cardText %></p>
+        <% if (previewDataUrl) { %>
+        <img src="<%= previewDataUrl %>" alt="Attachment Preview" class="card-preview-img" />
+        <% } %>
+        <p class="hint-text">
+          <%= wii.hasMii ? 'Includes your Mii. ' : '' %><%= wii.letterhead ? 'Letterhead: ' + wii.letterhead.name + '.' : '' %>
+        </p>
+      </div>
+      <% } else { %>
       <div class="preview-wrapper">
         <img src="<%= previewDataUrl %>" alt="Card Preview" class="card-preview-img" />
       </div>
+      <% } %>
 
       <div class="preview-actions">
         <% if (typeof sendError !== 'undefined' && sendError && canRetryDirectly) { %>

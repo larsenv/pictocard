@@ -747,3 +747,44 @@ input[type='color'] {
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   }
 }
+
+/* ── Wii tab ─────────────────────────────────────── */
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.radio-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+.letterhead-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.letterhead-default {
+  display: block;
+  margin: 8px 0;
+}
+.letterhead-group {
+  margin: 14px 0 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6c6d76);
+}
+.letterhead-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.letterhead-gallery .preset-option {
+  position: relative;
+}
+.letterhead-gallery img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
