@@ -83,7 +83,7 @@ async function build(arcPath, group, name) {
       const f = path.join(lettersDir, `my_Letter_${k}.tpl.png`);
       if (fs.existsSync(f)) {
         const [w, h] = SIZES[k];
-        const input = await sharp(f).resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).png().toBuffer();
+        const input = await sharp(f).resize(w, h, { fit: 'fill', kernel: 'linear' }).png().toBuffer();
         layers.push({ input, left, top });
       }
     }
