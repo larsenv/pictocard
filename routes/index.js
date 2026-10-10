@@ -434,7 +434,7 @@ router.post(
       const senderWiiCode = usingWii ? String(senderWii || '').replace(/[\s-]/g, '') : '';
       const wiiCode = usingWii ? String(recipientWii || '').replace(/[\s-]/g, '') : '';
       if (usingWii) {
-        if (!wc24Config()) return redirectWithError('Wii delivery is not available right now.');
+        if (!wc24Config()) return redirectWithError("Wii delivery isn't set up yet. Please check back soon.");
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
         if (!isFriendCode(senderWiiCode)) return redirectWithError('Enter your 16-digit Wii Number (or a friend\'s).');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');

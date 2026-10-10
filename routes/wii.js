@@ -37,7 +37,7 @@ router.get('/', (_req, res) => render(res));
 // ── POST /wii ─────────────────────────────────────────────────────────────────
 // Sends the Wii a one-time friend request so it can receive PictoCards.
 router.post('/', limiter, async (req, res) => {
-  if (!wc24Config()) return render(res, { error: 'Wii delivery is not available right now.' });
+  if (!wc24Config()) return render(res, { error: "Wii delivery isn't set up yet. Please check back soon." });
 
   const body = req.body || {};
   const code = String(body.friendCode || '').replace(/[\s-]/g, '');
