@@ -171,25 +171,17 @@
               />
               <span class="field-hint"
                 >The recipient's Wii has to be friends with PictoCard first (it's quick and only
-                needed once). <a href="/wii">Set that up here</a>.</span
+                needed once). <a href="/wii">Learn more</a>.</span
               >
-            </div>
-
-            <div class="field">
-              <label for="senderWii">Your Wii Number</label>
-              <input
-                type="text"
-                id="senderWii"
-                name="senderWii"
-                inputmode="numeric"
-                maxlength="19"
-                placeholder="1234 5678 9012 3456"
-                autocomplete="off"
-                value="<%= (pending && pending.senderWii) || '' %>"
-              />
-              <span class="field-hint"
-                >Yours or a friend's.</span
+              <button
+                type="submit"
+                class="btn btn-secondary btn-sm"
+                formaction="/wii"
+                formenctype="application/x-www-form-urlencoded"
+                formnovalidate
               >
+                Just send this Wii a friend request
+              </button>
             </div>
 
             <div class="field">
@@ -444,9 +436,7 @@
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');
         if (wiiNum) wiiNum.required = wii;
-        const senderWiiInput = document.getElementById('senderWii');
         // Wii mail needs no email address and the name is optional
-        if (senderWiiInput) senderWiiInput.required = wii;
         const emailField = document.getElementById('senderEmailField');
         const emailInput = document.getElementById('senderEmail');
         const nameInput = document.getElementById('senderName');
