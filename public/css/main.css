@@ -796,3 +796,17 @@ input[type='color'] {
   object-fit: contain;
   display: block;
 }
+
+/* Delivery tabs: keep them compact on narrow screens */
+.tab-btn {
+  line-height: 1.25;
+}
+@media (max-width: 560px) {
+  .delivery-tabs {
+    gap: 6px;
+  }
+  .tab-btn {
+    padding: 8px 4px;
+    font-size: 0.78rem;
+  }
+}
