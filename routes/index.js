@@ -252,7 +252,7 @@ async function createWiiPending(req, res, o) {
   const miiFile = files.wiiMii && files.wiiMii[0];
   if (miiFile) {
     mii = wiiMail.validateMii(miiFile.buffer);
-    if (!mii) return redirectWithError('The Mii must be a Wii Mii file of exactly 74 bytes.');
+    if (!mii) return redirectWithError('The Mii must be a Wii Mii file (74 bytes, or 76 with the checksum).');
   }
 
   // Letterhead (optional)
@@ -288,7 +288,8 @@ async function createWiiPending(req, res, o) {
     if (!imageBuffer) return redirectWithError('Please upload an image or select a preset for the PictoCard.');
     const card = await generateCard({
       imageBuffer,
-      text: (o.cardText || '').slice(0, 500),
+      // Own card text if given, otherwise the letter's message
+      text: ((o.wiiCardText || '').trim() || o.cardText || '').slice(0, 500),
       font: o.fontFamily || 'RodinNTLG',
       textColor: o.textColor || '#111111',
       senderName: o.effectiveSenderName,
@@ -350,6 +351,7 @@ router.post(
         senderEmail,
         recipientWii,
         senderWii,
+        wiiCardText,
         wiiAttach,
         letterhead
       } = req.body || {};
@@ -443,7 +445,7 @@ router.post(
       }
 
       // SFW check on card text via external moderation API (skipped if not configured)
-      const textToCheck = (cardText || '').trim();
+      const textToCheck = [(cardText || '').trim(), usingWii ? (wiiCardText || '').trim() : ''].filter(Boolean).join('\n');
       if (textToCheck) {
         const flagged = await checkContentModeration(textToCheck);
         if (flagged) {
@@ -458,6 +460,7 @@ router.post(
           senderWiiCode,
           effectiveSenderName,
           cardText,
+          wiiCardText,
           fontFamily,
           textColor,
           presetImage,
