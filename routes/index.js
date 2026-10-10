@@ -292,7 +292,7 @@ async function createWiiPending(req, res, o) {
       font: o.fontFamily || 'RodinNTLG',
       textColor: o.textColor || '#111111',
       senderName: o.effectiveSenderName,
-      miiData: null, // the Mii travels in the mail header instead
+      miiData: mii, // the same Mii is also sent in the mail header
       includeDate: true
     });
     jpeg = await wiiMail.toBaselineJpeg(card);
