@@ -175,7 +175,7 @@
             </div>
 
             <div class="field">
-              <label for="senderWii">Your Wii Number</label>
+              <label for="senderWii">Your Wii Number (optional)</label>
               <input
                 type="text"
                 id="senderWii"
@@ -187,7 +187,7 @@
                 value="<%= (pending && pending.senderWii) || '' %>"
               />
               <span class="field-hint"
-                >Yours or a friend's. We send a verification code to this Wii's Message Board.</span
+                >Yours or a friend's.</span
               >
             </div>
 
@@ -441,7 +441,6 @@
         const wiiNum = document.getElementById('recipientWii');
         if (wiiNum) wiiNum.required = wii;
         const senderWiiInput = document.getElementById('senderWii');
-        if (senderWiiInput) senderWiiInput.required = wii;
         // Wii mail needs no email address and the name is optional
         const emailField = document.getElementById('senderEmailField');
         const emailInput = document.getElementById('senderEmail');
