@@ -193,5 +193,50 @@
     "id": "wii-shop-channel-returned",
     "group": "Wii Shop Channel",
     "name": "Wii Shop Channel - Returned"
+  },
+  {
+    "id": "wii-speak-channel-dutch",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - Dutch"
+  },
+  {
+    "id": "wii-speak-channel-english",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - English"
+  },
+  {
+    "id": "wii-speak-channel-french",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - French"
+  },
+  {
+    "id": "wii-speak-channel-german",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - German"
+  },
+  {
+    "id": "wii-speak-channel-italian",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - Italian"
+  },
+  {
+    "id": "wii-speak-channel-japanese",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - Japanese"
+  },
+  {
+    "id": "wii-speak-channel-korean",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - Korean"
+  },
+  {
+    "id": "wii-speak-channel-spanish",
+    "group": "Wii Speak Channel",
+    "name": "Wii Speak Channel - Spanish"
+  },
+  {
+    "id": "wii-no-ma",
+    "group": "Wii no Ma",
+    "name": "Wii no Ma"
   }
 ]

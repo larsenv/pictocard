@@ -188,7 +188,7 @@
               <label for="wiiMii">Mii (optional)</label>
               <input type="file" id="wiiMii" name="wiiMii" />
               <span class="field-hint"
-                >A Wii Mii file of exactly 74 bytes. It shows as your face on the letter.</span
+                >A Wii Mii file (74 bytes, or 76 with the checksum). It shows as your face on the letter.</span
               >
             </div>
 
@@ -211,9 +211,20 @@
                   it.</span
                 >
               </div>
-              <span class="field-hint" id="wiiCardHint" style="display: none"
-                >Uses the Card Image, message and font below.</span
-              >
+              <div id="wiiCardTextField" style="display: none">
+                <label for="wiiCardText">Text on the PictoCard (optional)</label>
+                <textarea
+                  id="wiiCardText"
+                  name="wiiCardText"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="Leave empty to use your message"
+                ></textarea>
+                <span class="field-hint"
+                  >The card uses the Card Image and font below. Your message above is still the
+                  text of the letter.</span
+                >
+              </div>
             </div>
 
             <% if (letterheadGroups && letterheadGroups.length > 0) { %>
@@ -433,9 +444,9 @@
         const extras = document.getElementById('extrasGroup');
         if (extras) extras.style.display = wii ? 'none' : '';
         const imgField = document.getElementById('wiiImageField');
-        const cardHint = document.getElementById('wiiCardHint');
+        const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
-        if (cardHint) cardHint.style.display = attach === 'card' ? '' : 'none';
+        if (cardTextField) cardTextField.style.display = attach === 'card' ? '' : 'none';
         const text = document.getElementById('cardText');
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');
