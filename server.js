@@ -15,6 +15,7 @@ try {
 }
 
 const { initBot } = require('./lib/discordBot');
+const { startPolling: startWc24 } = require('./lib/wc24');
 
 const app = express();
 
@@ -94,5 +95,8 @@ app.listen(port, () => {
 
 // Initialise Discord bot (no-op if disabled)
 initBot().catch((err) => console.error('[Discord] init failed:', err.message));
+
+// Poll WiiConnect24 for incoming Wii mail (no-op if WC24 env vars are unset)
+startWc24();
 
 module.exports = app;
