@@ -21,6 +21,12 @@
           The PictoCard bot sent a 6-digit code to
           <strong><%= discordUsername %></strong> on Discord. Enter it below to continue.
         </p>
+        <% } else if (verifyViaWii) { %>
+        <h1>Check Your Wii Message Board</h1>
+        <p class="hero-sub">
+          We sent a letter with a 6-digit code to the Wii <strong><%= wiiNumber %></strong>. It
+          arrives after that Wii next checks its mail. Enter the code below to continue.
+        </p>
         <% } else { %>
         <h1>Check Your Email</h1>
         <p class="hero-sub">
