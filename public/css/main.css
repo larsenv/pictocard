@@ -605,7 +605,13 @@ input[type='color'] {
   border-color: var(--accent);
 }
 .tab-panel {
-  /* visible by default, JS toggles display */
+  /* JS toggles display; spacing between stacked fields */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.tab-panel .btn {
+  align-self: stretch;
 }
 
 .verify-form {
