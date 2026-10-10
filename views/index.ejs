@@ -155,7 +155,7 @@
             style="<%= wiiTab ? '' : 'display:none' %>"
           >
             <% if (!wiiEnabled) { %>
-            <p class="field-hint">Sending to a Wii isn't available right now.</p>
+            <p class="field-hint">Wii delivery isn't set up yet. Please check back soon.</p>
             <% } else { %>
             <div class="field">
               <label for="recipientWii">Recipient Wii Number</label>
@@ -170,8 +170,24 @@
                 value="<%= (pending && pending.recipientWii) || '' %>"
               />
               <span class="field-hint"
-                >The recipient must have added PictoCard to their Wii's address book.
-                <a href="/wii">Send them a friend request</a>.</span
+                >We'll send this Wii a one-time friend request so it can receive your letter.</span
+              >
+            </div>
+
+            <div class="field">
+              <label for="senderWii">Your Wii Number</label>
+              <input
+                type="text"
+                id="senderWii"
+                name="senderWii"
+                inputmode="numeric"
+                maxlength="19"
+                placeholder="1234 5678 9012 3456"
+                autocomplete="off"
+                value="<%= (pending && pending.senderWii) || '' %>"
+              />
+              <span class="field-hint"
+                >Yours or a friend's. We send a verification code to this Wii's Message Board.</span
               >
             </div>
 
@@ -424,6 +440,17 @@
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');
         if (wiiNum) wiiNum.required = wii;
+        const senderWiiInput = document.getElementById('senderWii');
+        if (senderWiiInput) senderWiiInput.required = wii;
+        // Wii mail needs no email address and the name is optional
+        const emailField = document.getElementById('senderEmailField');
+        const emailInput = document.getElementById('senderEmail');
+        const nameInput = document.getElementById('senderName');
+        if (wii) {
+          if (emailField) emailField.style.display = 'none';
+          if (emailInput) emailInput.required = false;
+          if (nameInput) nameInput.required = false;
+        }
       }
       document.querySelectorAll('input[name="wiiAttach"]').forEach((r) => {
         r.addEventListener('change', applyWiiMode);

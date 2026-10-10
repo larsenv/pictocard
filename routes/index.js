@@ -38,7 +38,7 @@ const { sendVerificationCode, sendCard, sendCardConfirmation } = require('../lib
 const { generateCard } = require('../lib/cardGenerator');
 const { decodeMiiQr } = require('../lib/miiQr');
 const wiiMail = require('../lib/wiiMail');
-const { sendWiiMail, wc24Config, isFriendCode } = require('../lib/wc24');
+const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
 const { verifyTurnstile, siteKey: turnstileSiteKey } = require('../lib/turnstile');
 const { isVerified: isEmailVerified, markVerified: markEmailVerified } = require('../lib/verifiedEmails');
 const {
@@ -208,7 +208,7 @@ const verifyRequestTargetLimiter = makeLimiter({
   message: 'Too many verification requests for this recipient. Please wait a few minutes.',
   keyGenerator: (req) => {
     const p = req.session && req.session.pending;
-    const target = p && (p.senderEmail || p.senderDiscordUserId || p.senderDiscord);
+    const target = p && (p.senderEmail || p.senderWii || p.senderDiscordUserId || p.senderDiscord);
     return target ? `vreq:${String(target).toLowerCase()}` : `vreq-ip:${req.ip}`;
   }
 });
@@ -300,7 +300,8 @@ async function createWiiPending(req, res, o) {
 
   req.session.pending = {
     cardId: uuidv4(),
-    senderEmail: o.senderEmail,
+    senderEmail: null,
+    senderWii: o.senderWiiCode,
     senderName: o.effectiveSenderName,
     senderDiscord: null,
     senderDiscordUserId: req.session.discordUser ? req.session.discordUser.id : null,
@@ -321,7 +322,7 @@ async function createWiiPending(req, res, o) {
   };
 
   // One-time email verification for signed-in Discord users (see POST /create)
-  if (req.session.discordUser && isEmailVerified(req.session.discordUser.id, o.senderEmail)) {
+  if (req.session.discordUser && isEmailVerified(req.session.discordUser.id, `wii:${o.senderWiiCode}`)) {
     req.session.pending.codeVerified = true;
     req.session.pending.skipVerify = true;
   }
@@ -350,6 +351,7 @@ router.post(
         presetImage,
         senderEmail,
         recipientWii,
+        senderWii,
         wiiAttach,
         letterhead
       } = req.body || {};
@@ -377,7 +379,8 @@ router.post(
           textColor: textColor || '#111111',
           verifyViaDiscord: usingDiscord,
           wiiTab: usingWii,
-          recipientWii: recipientWii || null
+          recipientWii: recipientWii || null,
+          senderWii: senderWii || null
         };
         return res.redirect('/');
       }
@@ -409,6 +412,9 @@ router.post(
           (req.session.discordUser ? req.session.discordUser.displayName : '') ||
           (senderName || '').trim() ||
           'Someone';
+      } else if (usingWii) {
+        // Wii mail only needs a Wii Number; the name is optional
+        effectiveSenderName = (senderName || '').trim() || 'Someone';
       } else {
         if (!senderName || senderName.trim().length === 0) {
           return redirectWithError('Sender name is required.');
@@ -419,17 +425,18 @@ router.post(
       // For Discord, sender username comes exclusively from OAuth session
       const senderDiscordTrimmed =
         usingDiscord && req.session.discordUser ? req.session.discordUser.username : '';
-      if (!usingDiscord) {
+      if (!usingDiscord && !usingWii) {
         if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
           return redirectWithError('A valid sender email is required for verification.');
         }
       }
 
+      const senderWiiCode = usingWii ? String(senderWii || '').replace(/[\s-]/g, '') : '';
       const wiiCode = usingWii ? String(recipientWii || '').replace(/[\s-]/g, '') : '';
       if (usingWii) {
         if (!wc24Config()) return redirectWithError('Wii delivery is not available right now.');
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
-        if (!senderName || !senderName.trim()) return redirectWithError('Sender name is required.');
+        if (!isFriendCode(senderWiiCode)) return redirectWithError('Enter your 16-digit Wii Number (or a friend\'s).');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');
       } else if (!recipientEmail && !recipientDiscord) {
         return redirectWithError('Please enter a recipient email or Discord username.');
@@ -451,8 +458,8 @@ router.post(
         return await createWiiPending(req, res, {
           redirectWithError,
           wiiCode,
+          senderWiiCode,
           effectiveSenderName,
-          senderEmail,
           cardText,
           fontFamily,
           textColor,
@@ -577,7 +584,8 @@ router.post(
         textColor: body.textColor || '#111111',
         verifyViaDiscord: body.deliveryMethod === 'discord',
         wiiTab: body.deliveryMethod === 'wii',
-        recipientWii: body.recipientWii || null
+        recipientWii: body.recipientWii || null,
+        senderWii: body.senderWii || null
       };
       res.redirect('/');
     }
@@ -638,6 +646,11 @@ router.post('/verify-request', verifyRequestIpLimiter, verifyRequestTargetLimite
         req.session.previewSendError = `Could not send verification code via Discord: ${dmResult.error}`;
         return res.redirect('/preview');
       }
+    } else if (pending.wii) {
+      await sendWiiText(
+        pending.senderWii,
+        `Your PictoCard verification code is ${code}. It expires in 10 minutes. If you did not request this, ignore this letter.`
+      );
     } else {
       await sendVerificationCode(pending.senderEmail, code, pending.senderName);
     }
@@ -657,6 +670,8 @@ router.get('/verify', (req, res) => {
     error: null,
     email: senderEmail,
     verifyViaDiscord: !!verifyViaDiscord,
+    verifyViaWii: !!req.session.pending.senderWii,
+    wiiNumber: req.session.pending.senderWii || null,
     discordUsername: senderDiscord || null,
     domain: config.domain
   });
@@ -678,6 +693,8 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
         error: 'Verification code expired. Please request a new one.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
+        verifyViaWii: !!pending.senderWii,
+        wiiNumber: pending.senderWii || null,
         discordUsername: pending.senderDiscord || null,
         domain: config.domain
       });
@@ -693,6 +710,8 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
           error: 'Too many incorrect attempts. Please go back and request a new code.',
           email: pending.senderEmail,
           verifyViaDiscord: !!pending.verifyViaDiscord,
+        verifyViaWii: !!pending.senderWii,
+        wiiNumber: pending.senderWii || null,
           discordUsername: pending.senderDiscord || null,
           domain: config.domain
         });
@@ -701,6 +720,8 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
         error: 'Incorrect code. Please try again.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
+        verifyViaWii: !!pending.senderWii,
+        wiiNumber: pending.senderWii || null,
         discordUsername: pending.senderDiscord || null,
         domain: config.domain
       });
@@ -711,7 +732,10 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
     // Remember the address for this Discord account so it is a one-time step
     if (!pending.verifyViaDiscord && req.session.discordUser) {
       try {
-        markEmailVerified(req.session.discordUser.id, pending.senderEmail);
+        markEmailVerified(
+          req.session.discordUser.id,
+          pending.wii ? `wii:${pending.senderWii}` : pending.senderEmail
+        );
       } catch (err) {
         console.error('[verifiedEmails]', err.message);
       }
@@ -791,6 +815,8 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
       error: 'Failed to send card. Please try again.',
       email: pending.senderEmail,
       verifyViaDiscord: !!pending.verifyViaDiscord,
+        verifyViaWii: !!pending.senderWii,
+        wiiNumber: pending.senderWii || null,
       discordUsername: pending.senderDiscord || null,
       domain: config.domain
     });
