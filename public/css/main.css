@@ -786,5 +786,7 @@ input[type='color'] {
 .letterhead-gallery img {
   width: 100%;
   height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
   display: block;
 }
