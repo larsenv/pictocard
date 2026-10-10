@@ -2,7 +2,7 @@
 
 // Builds the Wii letterhead gallery from RiiConnect24/WMB-Letterhead.
 //
-//   node scripts/build-letterheads.js <path-to-WMB-Letterhead> [--all]
+//   node scripts/build-letterheads.js <path-to-WMB-Letterhead> [--all] [--default <img dir>]
 //
 // Uses nintoolbox (wszst + wimgt on PATH) to unpack each .arc and decode its
 // nine letter tiles, assembles them into the 512x376 letterhead, and puts the
@@ -70,39 +70,38 @@ function walk(dir) {
   });
 }
 
+async function compose(lettersDir, thumb) {
+  const layers = [];
+  for (const [k, [left, top]] of Object.entries(TILES)) {
+    const f = path.join(lettersDir, `my_Letter_${k}.tpl.png`);
+    if (!fs.existsSync(f)) continue;
+    const [w, h] = SIZES[k];
+    const input = await sharp(f).resize(w, h, { fit: 'fill', kernel: 'linear' }).png().toBuffer();
+    layers.push({ input, left, top });
+  }
+  if (layers.length < 9) throw new Error(`only ${layers.length}/9 letter tiles`);
+  // Envelope icon -> bottom-left corner
+  if (thumb && fs.existsSync(thumb)) {
+    const { height } = await sharp(thumb).metadata();
+    layers.push({ input: thumb, left: 8, top: H - height - 8 });
+  }
+  return sharp({
+    create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+  })
+    .composite(layers)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 async function build(arcPath, group, name) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lh-'));
   try {
     fs.copyFileSync(arcPath, path.join(tmp, 'a.arc'));
     execFileSync('wszst', ['xx', 'a.arc'], { cwd: tmp, stdio: 'pipe' });
-    const lettersDir = path.join(tmp, 'a.d', 'letter_LZ.bin.d', 'img');
-    const thumbDir = path.join(tmp, 'a.d', 'thumbnail_LZ.bin.d', 'img');
-
-    const layers = [];
-    for (const [k, [left, top]] of Object.entries(TILES)) {
-      const f = path.join(lettersDir, `my_Letter_${k}.tpl.png`);
-      if (fs.existsSync(f)) {
-        const [w, h] = SIZES[k];
-        const input = await sharp(f).resize(w, h, { fit: 'fill', kernel: 'linear' }).png().toBuffer();
-        layers.push({ input, left, top });
-      }
-    }
-    if (layers.length < 9) throw new Error(`only ${layers.length}/9 letter tiles`);
-
-    // Envelope icon -> bottom-left corner
-    const thumb = path.join(thumbDir, 'my_LetterS_b.tpl.png');
-    if (fs.existsSync(thumb)) {
-      const { height } = await sharp(thumb).metadata();
-      layers.push({ input: thumb, left: 8, top: H - height - 8 });
-    }
-
-    const out = await sharp({
-      create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
-    })
-      .composite(layers)
-      .png({ compressionLevel: 9 })
-      .toBuffer();
-    return out;
+    return await compose(
+      path.join(tmp, 'a.d', 'letter_LZ.bin.d', 'img'),
+      path.join(tmp, 'a.d', 'thumbnail_LZ.bin.d', 'img', 'my_LetterS_b.tpl.png')
+    );
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -128,6 +127,15 @@ async function build(arcPath, group, name) {
     } catch (err) {
       console.error('FAIL', file, err.message);
     }
+  }
+  const di = process.argv.indexOf('--default');
+  if (di > 0) {
+    const dir = path.resolve(process.argv[di + 1]);
+    fs.writeFileSync(
+      path.join(PREVIEW_DIR, 'default.png'),
+      await compose(dir, path.join(dir, 'my_LetterS_b.tpl.png'))
+    );
+    console.log('ok   default');
   }
   fs.writeFileSync(path.join(ARC_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`${manifest.length} letterheads`);
