@@ -37,6 +37,13 @@ const TILES = {
   d: [0, 144], e: [64, 144], f: [448, 144],
   g: [0, 312], h: [64, 312], i: [448, 312]
 };
+// Slot size of each tile. Some letterheads store stretched tiles at a smaller
+// size (e.g. 16x144) which the Message Board scales up, so resize to the slot.
+const SIZES = {
+  a: [64, 144], b: [384, 144], c: [64, 144],
+  d: [64, 168], e: [384, 168], f: [64, 168],
+  g: [64, 64], h: [384, 64], i: [64, 64]
+};
 
 // One-time letters are left out: all of "Calling" except the image-embedding
 // one (CALLING_KEEP), and RiiConnect24's Valentine's Day letters.
@@ -74,7 +81,11 @@ async function build(arcPath, group, name) {
     const layers = [];
     for (const [k, [left, top]] of Object.entries(TILES)) {
       const f = path.join(lettersDir, `my_Letter_${k}.tpl.png`);
-      if (fs.existsSync(f)) layers.push({ input: f, left, top });
+      if (fs.existsSync(f)) {
+        const [w, h] = SIZES[k];
+        const input = await sharp(f).resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).png().toBuffer();
+        layers.push({ input, left, top });
+      }
     }
     if (layers.length < 9) throw new Error(`only ${layers.length}/9 letter tiles`);
 
