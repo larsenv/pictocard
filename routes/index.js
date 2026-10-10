@@ -301,7 +301,7 @@ async function createWiiPending(req, res, o) {
   req.session.pending = {
     cardId: uuidv4(),
     senderEmail: null,
-    senderWii: o.senderWiiCode,
+    senderWii: o.senderWiiCode || null,
     senderName: o.effectiveSenderName,
     senderDiscord: null,
     senderDiscordUserId: req.session.discordUser ? req.session.discordUser.id : null,
@@ -321,11 +321,9 @@ async function createWiiPending(req, res, o) {
     }
   };
 
-  // One-time email verification for signed-in Discord users (see POST /create)
-  if (req.session.discordUser && isEmailVerified(req.session.discordUser.id, `wii:${o.senderWiiCode}`)) {
-    req.session.pending.codeVerified = true;
-    req.session.pending.skipVerify = true;
-  }
+  // Wii mail has no verification step (Turnstile and rate limits guard it)
+  req.session.pending.codeVerified = true;
+  req.session.pending.skipVerify = true;
   return res.redirect('/preview');
 }
 
@@ -436,7 +434,7 @@ router.post(
       if (usingWii) {
         if (!wc24Config()) return redirectWithError("Wii delivery isn't set up yet. Please check back soon.");
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
-        if (!isFriendCode(senderWiiCode)) return redirectWithError('Enter your 16-digit Wii Number (or a friend\'s).');
+        if (senderWiiCode && !isFriendCode(senderWiiCode)) return redirectWithError('Your Wii Number must be 16 digits.');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');
       } else if (!recipientEmail && !recipientDiscord) {
         return redirectWithError('Please enter a recipient email or Discord username.');
