@@ -4,3 +4,4 @@ uploads/
 *.log
 .env
 data/wc24-friends.json
+data/verified-emails.json
