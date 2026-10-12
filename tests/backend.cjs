@@ -42,7 +42,7 @@ async function fixture(t, pending = null) {
     req.session = state;
     next();
   });
-  app.use(csrf({ multipartPaths: ['/create', '/card-preview'] }));
+  app.use(csrf({ multipartPaths: ['/create', '/card-preview', '/mii-import'] }));
   app.use('/', routes);
   app.use('/discord', discordRoutes);
   const server = app.listen(0, '127.0.0.1');
@@ -304,4 +304,34 @@ test('a rejected Wii friend request is never recorded as sent', async (t) => {
   }));
   await assert.rejects(wc24.requestFriend('5555666677778888'), /Rejected/);
   assert.equal(writes, 0);
+});
+
+test('card Mii imports require CSRF, retain raw data through edits, and can be removed', async (t) => {
+  const sample = Buffer.from('AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6', 'base64');
+  mock.method(global, 'fetch', async (url) => {
+    assert.match(String(url), /^https:\/\/mii-unsecure\.ariankordi\.net\/miis\/image\.png/);
+    assert.equal(new URL(url).searchParams.get('data'), sample.toString('hex'));
+    return { ok: true, arrayBuffer: async () => image };
+  });
+  t.after(() => mock.restoreAll());
+  const f = await fixture(t, readyCard());
+  const denied = new FormData();
+  denied.append('source', 'data');
+  denied.append('value', sample.toString('base64'));
+  assert.equal((await f.request('/mii-import', { method: 'POST', body: denied })).status, 403);
+  denied.append('_csrf', 'test-token');
+  const loaded = await f.request('/mii-import', { method: 'POST', body: denied });
+  assert.equal(loaded.status, 200);
+  assert.equal((await loaded.json()).data, sample.toString('base64'));
+  const fields = { _csrf: 'test-token', deliveryMethod: 'email', senderName: 'Alex', senderEmail: 'alex@example.com',
+    recipientEmail: 'friend@example.com', cardText: 'Hello', cardMiiData: sample.toString('base64') };
+  assert.equal((await f.request('/create', { method: 'POST', body: new URLSearchParams(fields) })).headers.get('location'), '/preview');
+  assert.equal(f.state.pending.miiData, sample.toString('base64'));
+  fields.senderName = '';
+  await f.request('/create', { method: 'POST', body: new URLSearchParams(fields) });
+  assert.equal(f.state.pending.miiData, sample.toString('base64'));
+  fields.senderName = 'Alex';
+  fields.cardMiiData = 'remove';
+  await f.request('/create', { method: 'POST', body: new URLSearchParams(fields) });
+  assert.equal(f.state.pending.miiData, null);
 });

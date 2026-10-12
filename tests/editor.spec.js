@@ -142,3 +142,41 @@ test('email preference controls have clear spacing and the selected action is pr
   await expect(page.locator('.site-footer')).toHaveText('© PictoCard');
   await expect(page.locator('.site-footer a')).toHaveCount(0);
 });
+
+test('extra Mii sources affect only the PictoCard and failed replacements keep the current Mii', async ({ page }) => {
+  const data = Buffer.alloc(96, 1).toString('base64');
+  const thumbnail = `data:image/png;base64,${(await import('node:fs')).readFileSync(image).toString('base64')}`;
+  let fail = false;
+  await page.route('**/mii-import', (route) => route.fulfill({ status: fail ? 422 : 200, contentType: 'application/json',
+    body: JSON.stringify(fail ? { error: 'No Mii found.' } : { data, name: 'Jasmine', image: thumbnail }) }));
+  await page.route('**/card-preview', (route) => route.fulfill({ contentType: 'application/json',
+    body: JSON.stringify({ image: thumbnail, wii: false }) }));
+  await page.goto('/');
+  await page.selectOption('#miiSource', 'nnid');
+  await expect(page.locator('#miiLookupField')).toBeVisible();
+  await expect(page.locator('#miiFileField')).toBeHidden();
+  await page.fill('#miiLookup', 'JasmineChlora');
+  await page.locator('#loadCardMii').click();
+  await expect(page.locator('#cardMiiStatus')).toHaveText('Jasmine loaded onto the PictoCard.');
+  await expect(page.locator('#cardMiiData')).toHaveValue(data);
+  fail = true;
+  await page.selectOption('#miiSource', 'pnid');
+  await page.locator('#loadCardMii').click();
+  await expect(page.locator('#cardMiiStatus')).toContainText('Your current Mii is kept.');
+  await expect(page.locator('#cardMiiData')).toHaveValue(data);
+  await page.selectOption('#miiSource', 'qr');
+  await expect(page.locator('#miiFile')).toHaveAttribute('accept', 'image/*');
+  await page.selectOption('#miiSource', 'amiibo');
+  await expect(page.locator('#miiSourceHint')).toContainText('532 or 540');
+  await page.selectOption('#miiSource', 'data');
+  await expect(page.locator('#miiCodeField')).toBeVisible();
+  await page.locator('#removeCardMii').click();
+  await expect(page.locator('#cardMiiData')).toHaveValue('remove');
+  await expect(page.locator('#cardMiiThumbnail')).toBeHidden();
+  await page.locator('#tabWii').click();
+  await expect(page.locator('#miiSource')).toBeHidden();
+  await expect(page.locator('#wiiMii')).toHaveAttribute('type', 'file');
+  await expect(page.locator('label[for="wiiMii"]')).toHaveText('Mii Face (Optional)');
+  await page.locator('input[name="wiiAttach"][value="card"]').check();
+  await expect(page.locator('#miiSource')).toBeVisible();
+});

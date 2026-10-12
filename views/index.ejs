@@ -390,8 +390,37 @@
           <legend>Optional Extras</legend>
 
           <div class="field">
-            <label for="miiFile">Mii on the PictoCard</label>
-            <input type="file" id="miiFile" name="miiFile" />
+            <label for="miiSource">Mii on the PictoCard</label>
+            <select id="miiSource">
+              <option value="file">Mii file</option>
+              <option value="nnid">Nintendo Network ID</option>
+              <option value="pnid">Pretendo Network ID</option>
+              <option value="data">Mii data or Studio URL</option>
+              <option value="qr">QR code image</option>
+              <option value="amiibo">amiibo dump</option>
+            </select>
+            <div id="miiFileField">
+              <label for="miiFile" class="sr-only">Choose a Mii file</label>
+              <input type="file" id="miiFile" name="miiFile" />
+            </div>
+            <div id="miiLookupField" hidden>
+              <label for="miiLookup" id="miiLookupLabel">Nintendo Network ID</label>
+              <input type="text" id="miiLookup" maxlength="16" autocomplete="off" placeholder="Enter an ID" />
+            </div>
+            <div id="miiCodeField" hidden>
+              <label for="miiCode">Mii data or Studio image URL</label>
+              <textarea id="miiCode" rows="3" maxlength="4096" placeholder="Paste hex, Base64, or an image URL containing Mii data"></textarea>
+            </div>
+            <input type="hidden" id="cardMiiData" name="cardMiiData" value="<%= pending && pending.miiData || '' %>" />
+            <div class="mii-actions">
+              <button type="button" class="btn btn-secondary" id="loadCardMii">Load Mii</button>
+              <button type="button" class="btn btn-secondary" id="removeCardMii" <%= pending && pending.miiData ? '' : 'hidden' %>>Remove Mii</button>
+            </div>
+            <div class="mii-result">
+              <img id="cardMiiThumbnail" alt="Selected Mii" hidden />
+              <span id="cardMiiStatus" class="field-hint" role="status"><%= pending && pending.miiData ? 'Current Mii kept. Load another to replace it.' : 'Optional. Choose a source to add your Mii.' %></span>
+            </div>
+            <span class="field-hint" id="miiSourceHint">Wii, 3DS, Wii U, Switch, or Mii Studio data. The Mii is drawn onto the PictoCard image.</span>
           </div>
         </fieldset>
 
@@ -564,6 +593,7 @@
 
     </script>
     <script src="/js/wii-preview.js" defer></script>
+    <script src="/js/mii-input.js" defer></script>
     <script src="/js/editor.js" defer></script>
   </body>
 </html>

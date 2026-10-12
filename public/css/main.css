@@ -683,6 +683,20 @@ input[type='color'] {
 .preview-error {
   color: var(--danger);
 }
+.mii-actions, .mii-result {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mii-result img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.mii-actions [hidden], .mii-result [hidden] {
+  display: none;
+}
 .mobile-preview-toggle,
 .preview-close {
   display: none;
