@@ -54,7 +54,7 @@ app.use(
 );
 
 // ── CSRF protection (all state-changing routes) ───────────────────────────────
-app.use(csrf({ multipartPaths: ['/create'] }));
+app.use(csrf({ multipartPaths: ['/create', '/card-preview'] }));
 
 // ── Static files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
