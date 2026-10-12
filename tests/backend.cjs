@@ -8,6 +8,8 @@ const express = require('express');
 const { csrf } = require('../lib/middleware');
 const config = require('../config.example');
 const nativeFetch = global.fetch;
+global.fetch = async (...args) => String(args[0]).startsWith('https://mii-unsecure.ariankordi.net')
+  ? { ok: false } : nativeFetch(...args);
 const image = fs.readFileSync(path.join(__dirname, '..', 'public', 'images', 'logo.png'));
 let sentCards = 0;
 let verificationRequests = 0;

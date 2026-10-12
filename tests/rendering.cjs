@@ -30,6 +30,19 @@ const { generateCard } = require('../lib/cardGenerator');
 const fonts = require('../lib/fonts');
 const imageBuffer = fs.readFileSync(path.join(__dirname, '..', 'public', 'images', 'logo.png'));
 
+test('light and dark backgrounds change only the text panel', async () => {
+  const sharp = require('sharp');
+  const source = await sharp({ create: { width: 100, height: 200, channels: 3, background: '#ff0000' } }).png().toBuffer();
+  const sample = async (background) => {
+    const output = await generateCard({ imageBuffer: source, text: '', background, includeDate: false });
+    const { data, info } = await sharp(output).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x, y) => [...data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3)];
+    return { margin: pixel(0, 320), text: pixel(info.width - 10, 320) };
+  };
+  assert.deepEqual(await sample('light'), { margin: [26, 26, 30], text: [255, 255, 255] });
+  assert.deepEqual(await sample('dark'), { margin: [26, 26, 30], text: [26, 26, 30] });
+});
+
 test('long messages stay complete or get a clear overflow error in every font', async () => {
   for (const font of fonts) {
     draws = [];

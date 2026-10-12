@@ -3,6 +3,36 @@ import path from 'node:path';
 
 const image = path.resolve('public/images/logo.png');
 
+test('text backgrounds apply to cards and Wii attachments without changing custom colors', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('input[name="cardBackground"][value="dark"]').check();
+  await expect(page.locator('#textColor')).toHaveValue('#f5f5f7');
+  await page.locator('#textColor').fill('#ff3344');
+  await page.locator('input[name="cardBackground"][value="light"]').check();
+  await expect(page.locator('#textColor')).toHaveValue('#ff3344');
+  await page.locator('#tabWii').click();
+  await expect(page.locator('#cardBackgroundGroup')).toBeHidden();
+  await page.locator('input[name="wiiAttach"][value="card"]').check();
+  await expect(page.locator('#cardBackgroundGroup')).toBeVisible();
+  await page.locator('input[name="cardBackground"][value="dark"]').check();
+  await page.setInputFiles('#cardImage', image);
+  await page.fill('#cardText', 'A letter\nwith\nseveral\nlines\nand a last line');
+  await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+  await expect(page.locator('#wiiPage')).toHaveText('1 / 2');
+  await page.locator('#wiiNext').click();
+  await expect(page.locator('#wiiPage')).toHaveText('2 / 2');
+  await page.locator('#wiiAttachmentTarget').click();
+  await expect(page.locator('#wiiExpandedImage')).toBeVisible();
+  await expect(page.locator('#wiiToggleAttachment')).toHaveText('Back to letter');
+  await page.locator('#wiiToggleAttachment').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#openPreview').click();
+  const stage = await page.locator('.wii-preview-stage').boundingBox();
+  const paper = await page.locator('#liveLetterhead').boundingBox();
+  expect(paper.x).toBeGreaterThanOrEqual(stage.x);
+  expect(paper.x + paper.width).toBeLessThanOrEqual(stage.x + stage.width + 1);
+});
+
 test('live preview updates for image, text, font, and color without submitting', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
@@ -68,7 +98,7 @@ test('Wii guidance stays inside its tab and supports a live letter preview', asy
   await expect(page.locator('#liveCardImage')).toBeHidden();
   await page.locator('.letterhead-details').evaluate((details) => { details.open = true; });
   await page.locator('.letterhead-gallery label[title="And-Kensaku"]').click();
-  await expect(page.locator('#liveLetterhead')).toHaveAttribute('src', '/images/letterheads/and-kensaku.png');
+  await expect(page.locator('#liveLetterhead')).toHaveAttribute('data-letterhead', '/images/letterheads/and-kensaku.png');
   expect(await page.locator('#liveLetterhead').evaluate((img) => img.naturalWidth)).toBe(512);
   await expect(page.locator('.wiilink-notice')).toHaveCount(0);
   await expect(page.locator('main')).not.toContainText('@rc24.xyz');

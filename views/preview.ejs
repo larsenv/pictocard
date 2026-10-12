@@ -30,13 +30,10 @@
 
       <% if (wii) { %>
       <div class="preview-wrapper">
-        <% if (wii.letterhead) { %>
-        <img src="<%= wii.letterhead.preview %>" alt="Letterhead: <%= wii.letterhead.name %>" class="card-preview-img" />
-        <% } %>
-        <p class="hero-sub" style="white-space: pre-wrap"><%= cardText %></p>
-        <% if (previewDataUrl) { %>
-        <img src="<%= previewDataUrl %>" alt="Attachment Preview" class="card-preview-img" />
-        <% } %>
+        <%- include('partials/wii-preview', { wiiPreviewData: {
+          native: wii.native, image: previewDataUrl, text: cardText,
+          letterhead: wii.letterhead ? wii.letterhead.preview : '/images/letterheads/default.png'
+        } }) %>
         <p class="hint-text">
           <%= wii.hasMii ? 'Includes your Mii. ' : '' %><%= wii.letterhead ? 'Letterhead: ' + wii.letterhead.name + '.' : '' %>
         </p>
@@ -71,5 +68,6 @@
     </main>
 
     <%- include('partials/footer') %>
+    <% if (wii) { %><script src="/js/wii-preview.js" defer></script><% } %>
   </body>
 </html>
