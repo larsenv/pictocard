@@ -417,6 +417,7 @@
       const ta = document.getElementById('cardText');
       const counter = document.getElementById('charCounter');
       if (ta && counter) {
+        counter.textContent = `${ta.value.length} / 500`;
         ta.addEventListener('input', () => {
           counter.textContent = `${ta.value.length} / 500`;
         });
@@ -481,6 +482,14 @@
 
         const senderFieldsGroup = document.getElementById('senderFields');
 
+        for (const [method, panel] of [['email', emailPanel], ['discord', discordPanel], ['wii', wiiPanel]]) {
+          if (panel) panel.querySelectorAll('input, select, textarea, button').forEach((field) => {
+            field.disabled = method !== tab;
+          });
+        }
+        if (senderNameInput) senderNameInput.disabled = tab === 'discord';
+        if (senderEmailInput) senderEmailInput.disabled = tab !== 'email';
+
         if (wiiPanel) wiiPanel.style.display = tab === 'wii' ? '' : 'none';
         if (tabWii) tabWii.classList.toggle('tab-active', tab === 'wii');
 
@@ -516,7 +525,7 @@
         }
         applyWiiMode();
       }
-      applyWiiMode();
+      switchTab(document.getElementById('deliveryMethod').value);
 
       // Discord tab click - redirect to login if not authorized, otherwise switch tabs
       (function () {
