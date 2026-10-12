@@ -3,16 +3,15 @@
     <img id="liveLetterhead" alt="Wii letter preview" />
     <button type="button" id="wiiAttachmentTarget" class="wii-attachment-target"
       aria-label="View attachment" hidden></button>
-    <div id="wiiExpanded" class="wii-expanded-preview" hidden>
+    <button type="button" id="wiiExpanded" class="wii-expanded-preview" aria-label="Back to letter" hidden>
       <img id="wiiExpandedImage" alt="Wii attachment" />
       <span class="wii-watermark" aria-hidden="true">Wii</span>
-    </div>
+    </button>
   </div>
   <div class="wii-preview-controls">
     <button type="button" class="btn btn-secondary" id="wiiPrevious" aria-label="Previous message page">↑</button>
     <span id="wiiPage" class="field-hint" aria-live="polite"></span>
     <button type="button" class="btn btn-secondary" id="wiiNext" aria-label="Next message page">↓</button>
-    <button type="button" class="btn btn-secondary" id="wiiToggleAttachment" aria-pressed="false" hidden>View attachment</button>
   </div>
   <p id="liveLetterText" class="sr-only"></p>
 </div>

@@ -23,8 +23,15 @@ test('text backgrounds apply to cards and Wii attachments without changing custo
   await expect(page.locator('#wiiPage')).toHaveText('2 / 2');
   await page.locator('#wiiAttachmentTarget').click();
   await expect(page.locator('#wiiExpandedImage')).toBeVisible();
-  await expect(page.locator('#wiiToggleAttachment')).toHaveText('Back to letter');
-  await page.locator('#wiiToggleAttachment').click();
+  await expect(page.locator('#wiiToggleAttachment')).toHaveCount(0);
+  await expect(page.locator('#wiiExpanded')).toBeFocused();
+  const attachment = await page.locator('#wiiExpanded').boundingBox();
+  const desktopStage = await page.locator('.wii-preview-stage').boundingBox();
+  expect(attachment.width).toBeLessThan(desktopStage.width);
+  expect(attachment.height).toBeLessThan(desktopStage.height);
+  await page.locator('#wiiExpandedImage').click();
+  await expect(page.locator('#wiiExpandedImage')).toBeHidden();
+  await expect(page.locator('#wiiAttachmentTarget')).toBeFocused();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#openPreview').click();
   const stage = await page.locator('.wii-preview-stage').boundingBox();

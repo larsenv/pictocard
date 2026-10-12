@@ -74,7 +74,7 @@
       image.hidden = result.wii || !result.image;
       heading.textContent = result.wii ? 'Wii Letter Preview' : 'Live Preview';
       description.textContent = result.wii
-        ? 'Wii layout preview. Select the thumbnail to view the attachment.'
+        ? 'Select the attachment to enlarge it. Select it again to return to the letter.'
         : document.getElementById('deliveryMethod').value === 'discord'
           ? 'This is the image sent in the Discord message. Nothing is sent until you confirm.'
           : 'This is the image sent by email. Nothing is sent until you confirm.';
