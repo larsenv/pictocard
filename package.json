@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "playwright test",
-    "test:unit": "node --test tests/backend.cjs",
+    "test:unit": "node --test --test-concurrency=1 tests/*.cjs",
     "test:local": "PORT=3001 playwright test"
   },
   "repository": {
