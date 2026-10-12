@@ -37,6 +37,7 @@ const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation, prepareCardAttachment } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
 const { decodeMiiQr } = require('../lib/miiQr');
+const { importCardMii, parseMiiData, validateMiiData, renderMiiImage } = require('../lib/miiAssets');
 const wiiMail = require('../lib/wiiMail');
 const { renderWiiLetter } = require('../lib/wiiPreview');
 const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
@@ -109,7 +110,7 @@ const upload = multer({
       cb(null, allowed.includes(file.mimetype));
     } else if (file.fieldname === 'wiiImage') {
       cb(null, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.mimetype));
-    } else if (file.fieldname === 'miiFile' || file.fieldname === 'wiiMii') {
+    } else if (['miiFile', 'wiiMii', 'miiImportFile'].includes(file.fieldname)) {
       // Accept any file for Mii binary data (wiiMii is validated to exactly 74 bytes later)
       cb(null, true);
     } else {
@@ -152,7 +153,7 @@ function formDraft(req) {
   const cardBackground = text('cardBackground') === 'dark' ? 'dark' : 'light';
   return {
     originalImage: previous.originalImage || null,
-    miiData: previous.miiData || null,
+    miiData: retainedCardMii(req),
     recipientEmail: method === 'email' ? text('recipientEmail').trim() || null : null,
     recipientDiscord: method === 'discord' ? text('recipientDiscord').trim().replace(/^@/, '') || null : null,
     senderName: text('senderName').trim(),
@@ -302,19 +303,56 @@ async function readImage(req, field, stored, preset = '') {
 
 async function readCardMii(req) {
   const file = req.files?.miiFile?.[0];
-  if (!file) return req.session.pending?.miiData ? Buffer.from(req.session.pending.miiData, 'base64') : null;
+  if (!file) {
+    const submitted = req.body?.cardMiiData;
+    if (typeof submitted === 'string' && submitted && submitted !== 'remove') return parseMiiData(submitted);
+    const stored = retainedCardMii(req);
+    return stored ? parseMiiData(stored) : null;
+  }
   const buffer = file.buffer;
   const isImage = file.mimetype.startsWith('image/') ||
     (buffer[0] === 0xff && buffer[1] === 0xd8) ||
     (buffer[0] === 0x89 && buffer[1] === 0x50) ||
     (buffer[0] === 0x47 && buffer[1] === 0x49) ||
     (buffer[0] === 0x52 && buffer[1] === 0x49);
-  if (!isImage) return buffer;
+  if (!isImage) return validateMiiData(buffer);
   if (!(await isImageWithinLimits(buffer))) throw cardInputError('That Mii QR image is too large or invalid.');
   const mii = await decodeMiiQr(buffer);
   if (!mii) throw cardInputError('Could not read a Mii QR code from that image. Please choose another file.');
   return mii;
 }
+
+function retainedCardMii(req) {
+  const submitted = req.body?.cardMiiData;
+  if (submitted === 'remove') return null;
+  if (typeof submitted === 'string' && submitted) {
+    try { return parseMiiData(submitted).toString('base64'); } catch { return null; }
+  }
+  return req.session.pending?.miiData || null;
+}
+
+router.post('/mii-import', rateLimit({ windowMs: 60_000, max: 30 }),
+  (req, res, next) => upload.single('miiImportFile')(req, res, (error) => {
+    validateCsrf(req, res, () => {
+      if (error) return res.status(400).json({ error: 'Choose a Mii file under 10 MB.' });
+      next();
+    });
+  }), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const { source, value } = req.body;
+      if (source === 'qr' && req.file && !(await isImageWithinLimits(req.file.buffer))) {
+        throw cardInputError('That QR image is too large or invalid.');
+      }
+      const mii = await importCardMii({ source, value, file: req.file?.buffer });
+      const image = await renderMiiImage(mii.data, 128);
+      res.json({ data: mii.data.toString('base64'), name: mii.name,
+        image: `data:image/png;base64,${image.toString('base64')}` });
+    } catch (error) {
+      res.status(error.code === 'CARD_INPUT' ? 422 : 500).json({ error: error.code === 'CARD_INPUT'
+        ? error.message : 'Could not load that Mii. Please try again.' });
+    }
+  });
 
 function readWiiMii(req) {
   const file = req.files?.wiiMii?.[0];
