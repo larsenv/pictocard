@@ -89,7 +89,7 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-const port = config.port || 3000;
+const port = Number(process.env.PORT || config.port || 3000);
 app.listen(port, () => {
   console.log(`PictoCard listening on http://localhost:${port}`);
 });
