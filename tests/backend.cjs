@@ -11,6 +11,7 @@ const nativeFetch = global.fetch;
 const image = fs.readFileSync(path.join(__dirname, '..', 'public', 'images', 'logo.png'));
 let sentCards = 0;
 let verificationRequests = 0;
+let fixtureNumber = 0;
 
 const email = require('../lib/emailService');
 email.sendCard = async () => { sentCards++; };
@@ -30,6 +31,7 @@ try {
 async function fixture(t, pending = null) {
   const state = { csrfToken: 'test-token', pending };
   const app = express();
+  app.set('trust proxy', 1);
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, '..', 'views'));
   app.use(express.urlencoded({ extended: true }));
@@ -38,7 +40,7 @@ async function fixture(t, pending = null) {
     req.session = state;
     next();
   });
-  app.use(csrf({ multipartPaths: ['/create'] }));
+  app.use(csrf({ multipartPaths: ['/create', '/card-preview'] }));
   app.use('/', routes);
   app.use('/discord', discordRoutes);
   const server = app.listen(0, '127.0.0.1');
@@ -48,9 +50,12 @@ async function fixture(t, pending = null) {
     server.closeAllConnections();
   }));
   const base = `http://127.0.0.1:${server.address().port}`;
+  const ip = `192.0.2.${++fixtureNumber}`;
   return {
     state,
-    request: (url, options = {}) => nativeFetch(base + url, { redirect: 'manual', ...options })
+    request: (url, options = {}) => nativeFetch(base + url, {
+      redirect: 'manual', ...options, headers: { 'X-Forwarded-For': ip, ...options.headers }
+    })
   };
 }
 
@@ -86,6 +91,98 @@ test('a failed edit invalidates the old card and its verification', async (t) =>
   });
   assert.equal(retry.headers.get('location'), '/');
   assert.equal(sentCards, before);
+});
+
+test('live previews use the final renderer and never change the pending card', async (t) => {
+  const original = readyCard();
+  const f = await fixture(t, structuredClone(original));
+  const fields = {
+    _csrf: 'test-token', deliveryMethod: 'email', senderName: 'Alex', senderEmail: 'alex@example.com',
+    recipientEmail: 'friend@example.com', cardText: 'hello '.repeat(83), fontFamily: 'rodinntlg', textColor: '#334455'
+  };
+  const preview = await f.request('/card-preview', { method: 'POST', body: new URLSearchParams(fields) });
+  assert.equal(preview.status, 200);
+  const result = await preview.json();
+  assert.match(result.image, /^data:image\/jpeg;base64,/);
+  assert.deepEqual(f.state.pending, original);
+  const created = await f.request('/create', { method: 'POST', body: new URLSearchParams(fields) });
+  assert.equal(created.headers.get('location'), '/preview');
+  const delivered = await email.prepareCardAttachment(Buffer.from(f.state.pending.generatedCard, 'base64'));
+  assert.equal(result.image, `data:image/jpeg;base64,${delivered.toString('base64')}`);
+});
+
+test('preview overflow gives a useful error instead of a truncated card', async (t) => {
+  const f = await fixture(t);
+  const response = await f.request('/card-preview', {
+    method: 'POST', body: new URLSearchParams({ _csrf: 'test-token', cardText: 'a\n'.repeat(200) })
+  });
+  assert.equal(response.status, 422);
+  const result = await response.json();
+  assert.equal(result.textOverflow, true);
+  assert.match(result.error, /line breaks/);
+  assert.equal(f.state.pending, null);
+});
+
+function enableWii(t) {
+  const keys = ['WII_NUMBER', 'WC24_SERVER', 'WC24_PASSWORD'];
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  Object.assign(process.env, { WII_NUMBER: '1111222233334444', WC24_SERVER: 'example.invalid', WC24_PASSWORD: 'test' });
+  t.after(() => keys.forEach((key) => {
+    if (saved[key] === undefined) delete process.env[key];
+    else process.env[key] = saved[key];
+  }));
+}
+
+function wiiBody(attach, text = 'Hello Wii') {
+  const body = new FormData();
+  for (const [key, value] of Object.entries({
+    _csrf: 'test-token', deliveryMethod: 'wii', recipientWii: '5555666677778888',
+    cardText: text, wiiCardText: 'Separate card text', wiiAttach: attach, letterhead: 'and-kensaku'
+  })) body.append(key, value);
+  return body;
+}
+
+test('Wii picture edits retain the picture, face, and letterhead', async (t) => {
+  enableWii(t);
+  const f = await fixture(t);
+  const body = wiiBody('image');
+  body.append('wiiImage', new Blob([image], { type: 'image/png' }), 'logo.png');
+  body.append('wiiMii', new Blob([Buffer.alloc(74)]), 'face.mii');
+  const preview = await (await f.request('/card-preview', { method: 'POST', body })).json();
+  assert.equal(f.state.pending, null);
+  const first = await f.request('/create', { method: 'POST', body });
+  assert.equal(first.headers.get('location'), '/preview');
+  const original = structuredClone(f.state.pending);
+  assert.equal(preview.image, `data:image/jpeg;base64,${original.wii.jpeg}`);
+  const form = await (await f.request('/')).text();
+  assert.match(form, /value="image" checked/);
+  assert.match(form, /value="and-kensaku" checked/);
+  assert.match(form, /Separate card text/);
+  const edited = await f.request('/create', { method: 'POST', body: wiiBody('image', 'Edited Wii message') });
+  assert.equal(edited.headers.get('location'), '/preview');
+  assert.equal(f.state.pending.wii.jpeg, original.wii.jpeg);
+  assert.equal(f.state.pending.wii.mii, original.wii.mii);
+  assert.equal(f.state.pending.wii.letterhead, 'and-kensaku');
+  assert.equal(f.state.pending.cardText, 'Edited Wii message');
+});
+
+test('Wii PictoCard edits reuse the card image and preserve separate card text', async (t) => {
+  enableWii(t);
+  const f = await fixture(t);
+  const body = wiiBody('card');
+  body.append('cardImage', new Blob([image], { type: 'image/png' }), 'logo.png');
+  const preview = await (await f.request('/card-preview', { method: 'POST', body })).json();
+  await f.request('/create', { method: 'POST', body });
+  assert.equal(f.state.pending.wii.attach, 'card');
+  const original = f.state.pending.wii.jpeg;
+  assert.equal(preview.image, `data:image/jpeg;base64,${original}`);
+  const edited = wiiBody('card');
+  edited.set('wiiCardText', 'Updated card text');
+  const result = await f.request('/create', { method: 'POST', body: edited });
+  assert.equal(result.headers.get('location'), '/preview');
+  assert.equal(f.state.pending.originalImage, image.toString('base64'));
+  assert.equal(f.state.pending.wiiCardText, 'Updated card text');
+  assert.notEqual(f.state.pending.wii.jpeg, original);
 });
 
 test('multipart verification requests cannot skip CSRF validation', async (t) => {

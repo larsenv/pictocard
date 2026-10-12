@@ -179,7 +179,7 @@ code {
 }
 
 .header-inner {
-  max-width: 900px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 20px;
   height: 68px;
@@ -556,20 +556,137 @@ input[type='color'] {
   font-family: 'Consolas', monospace;
 }
 
-/* ── Font preview ────────────────────────────── */
-.font-preview {
-  margin-top: 10px;
-  text-align: center;
-  background: none;
-  border: none;
+/* ── Card editor ─────────────────────────────── */
+.composer {
+  max-width: 1440px;
 }
-.font-preview img {
-  max-width: 100%;
-  width: auto;
-  max-height: 249px;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto;
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+.editor-layout > * {
+  min-width: 0;
+}
+.live-preview {
+  position: sticky;
+  top: 92px;
+  margin-top: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  max-height: calc(100dvh - 116px);
+  overflow: auto;
+}
+.preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.preview-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.live-preview-content img {
+  width: 100%;
+  border-radius: var(--radius);
+}
+.live-preview-content [hidden] {
+  display: none;
+}
+.wii-letter-preview {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.wii-letter-preview p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  margin: 0;
+}
+.wii-letter-preview h3 {
+  margin: 0;
+  padding: 12px 16px 0;
+  font-size: 0.85rem;
+}
+.live-preview-content > h3 {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+}
+.preview-error {
+  color: var(--danger);
+}
+.mobile-preview-toggle,
+.preview-close {
+  display: none;
+}
+.preference-form {
+  gap: 20px;
+}
+.preference-form .btn {
+  align-self: flex-start;
+}
+a.tab-btn:hover {
+  text-decoration: none;
+}
+.site-footer p {
+  margin: 0;
+}
+@media (max-width: 960px) {
+  .editor-layout {
+    display: block;
+  }
+  .live-preview {
+    display: none;
+  }
+  .live-preview.preview-open {
+    display: block;
+    position: fixed;
+    bottom: 78px;
+    top: auto;
+    margin-top: 0;
+    left: 14px;
+    right: 14px;
+    max-height: calc(100dvh - 158px);
+    z-index: 110;
+    box-shadow: var(--shadow);
+  }
+  .mobile-preview-toggle {
+    display: inline-flex;
+    position: fixed;
+    bottom: 18px;
+    right: 14px;
+    z-index: 111;
+    box-shadow: var(--shadow);
+  }
+  .preview-close {
+    display: inline-flex;
+  }
+  .composer {
+    padding-bottom: 90px;
+  }
+}
+@media (max-width: 400px) {
+  .header-inner {
+    gap: 12px;
+  }
+  .brand {
+    flex-shrink: 0;
+  }
+  .header-nav {
+    gap: 12px;
+  }
+  .header-nav a {
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
 }
 
 /* ── Delivery tabs ───────────────────────────── */

@@ -12,7 +12,7 @@
   <body>
     <%- include('partials/header') %>
 
-    <main class="container">
+    <main class="container composer">
       <% if (success) { %>
       <div class="alert alert-success">🎉 Your card was sent successfully!</div>
       <% } %> <% if (error) { %>
@@ -36,6 +36,7 @@
         </p>
       </section>
 
+      <div class="editor-layout">
       <form
         action="/create"
         method="POST"
@@ -132,12 +133,12 @@
                 type="text"
                 id="recipientDiscord"
                 name="recipientDiscord"
-                placeholder="discordusername"
+                placeholder="@username"
                 autocomplete="off"
                 value="<%= (pending && pending.recipientDiscord) || '' %>"
               />
               <span class="field-hint"
-                >Enter the recipient's Discord username (no @). The PictoCard bot must share a
+                >Enter the recipient's Discord username. The PictoCard bot must share a
                 server with them.
                 <a
                   href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot"
@@ -156,7 +157,7 @@
           >
             <% if (!wiiEnabled) { %>
             <p class="field-hint">Wii delivery isn't set up yet. Please check back soon.</p>
-            <% } else { %>
+            <% } %>
             <div class="field">
               <label for="recipientWii">Recipient Wii Number</label>
               <input
@@ -170,8 +171,8 @@
                 value="<%= (pending && pending.recipientWii) || '' %>"
               />
               <span class="field-hint"
-                >The recipient's Wii has to be friends with PictoCard first (it's quick and only
-                needed once).</span
+                >The recipient's Wii needs WiiLink and PictoCard in its address book.
+                <a href="/wii">Add PictoCard to a Wii</a> (only needed once).</span
               >
               <button
                 type="submit"
@@ -179,6 +180,8 @@
                 formaction="/wii"
                 formenctype="application/x-www-form-urlencoded"
                 formnovalidate
+                data-wii-enabled="<%= wiiEnabled ? '1' : '0' %>"
+                <%= wiiEnabled ? '' : 'disabled' %>
               >
                 Send Friend Request
               </button>
@@ -188,16 +191,16 @@
               <label for="wiiMii">Wii Face (Optional)</label>
               <input type="file" id="wiiMii" name="wiiMii" />
               <span class="field-hint"
-                >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter.</span
+                >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter. <%= pending && pending.wiiMiiData ? 'Leave empty to keep your current face.' : '' %></span
               >
             </div>
 
             <div class="field">
               <label>Attachment (Optional)</label>
               <div class="radio-row">
-                <label><input type="radio" name="wiiAttach" value="none" checked /> None</label>
-                <label><input type="radio" name="wiiAttach" value="image" /> Picture</label>
-                <label><input type="radio" name="wiiAttach" value="card" /> PictoCard</label>
+                <label><input type="radio" name="wiiAttach" value="none" <%= (!pending || !pending.wiiAttach || pending.wiiAttach === 'none') ? 'checked' : '' %> /> None</label>
+                <label><input type="radio" name="wiiAttach" value="image" <%= pending && pending.wiiAttach === 'image' ? 'checked' : '' %> /> Picture</label>
+                <label><input type="radio" name="wiiAttach" value="card" <%= pending && pending.wiiAttach === 'card' ? 'checked' : '' %> /> PictoCard</label>
               </div>
               <div id="wiiImageField" style="display: none">
                 <input
@@ -207,8 +210,7 @@
                   accept="image/jpeg,image/png,image/gif,image/webp"
                 />
                 <span class="field-hint"
-                  >JPEG, PNG, GIF or WebP - converted to a baseline JPEG so the Wii can display
-                  it.</span
+                  >JPEG, PNG, GIF or WebP, up to 10 MB. <%= pending && pending.wiiImage ? 'Leave empty to keep your current picture.' : '' %></span
                 >
               </div>
               <div id="wiiCardTextField" style="display: none">
@@ -219,7 +221,7 @@
                   rows="3"
                   maxlength="500"
                   placeholder="Leave empty to use your message"
-                ></textarea>
+                ><%= pending && pending.wiiCardText || '' %></textarea>
                 <span class="field-hint"
                   >The card uses the Card Image and font below. Your message above is still the
                   text of the letter.</span
@@ -235,7 +237,7 @@
                 <h4 class="letterhead-group">Default</h4>
                 <div class="letterhead-gallery">
                   <label class="preset-option" title="Default (no letterhead)">
-                    <input type="radio" name="letterhead" value="" checked />
+                    <input type="radio" name="letterhead" value="" <%= (!pending || !pending.letterhead) ? 'checked' : '' %> />
                     <img src="/images/letterheads/default.png" alt="Default letterhead" loading="lazy" />
                   </label>
                 </div>
@@ -244,7 +246,7 @@
                 <div class="letterhead-gallery">
                   <% g.items.forEach(function(l) { %>
                   <label class="preset-option" title="<%= l.name %>">
-                    <input type="radio" name="letterhead" value="<%= l.id %>" />
+                    <input type="radio" name="letterhead" value="<%= l.id %>" <%= pending && pending.letterhead === l.id ? 'checked' : '' %> />
                     <img src="<%= l.preview %>" alt="<%= l.name %>" loading="lazy" />
                   </label>
                   <% }); %>
@@ -252,7 +254,7 @@
                 <% }); %>
               </details>
             </div>
-            <% } %> <% } %>
+            <% } %>
           </div>
         </fieldset>
 
@@ -312,7 +314,7 @@
               accept="image/jpeg,image/png,image/gif,image/webp"
             />
             <span class="field-hint"
-              >JPEG, PNG, GIF or WebP - max 10 MB. <%= (pending && pending.generatedCard) ? 'Leave empty to keep current image.' : '' %></span
+              >JPEG, PNG, GIF or WebP - max 10 MB. <%= (pending && pending.originalImage) ? 'Leave empty to keep current image.' : '' %></span
             >
           </div>
 
@@ -346,6 +348,7 @@
               maxlength="500"
               placeholder="Write your message here..."
             ><%= (pending && pending.cardText) || '' %></textarea>
+            <span class="field-hint" id="messageFitHint">Up to 500 characters. Card text sizes to fit; the preview shows the result.</span>
           </div>
 
           <div class="field-row" id="fontRow">
@@ -353,16 +356,13 @@
               <label for="fontFamily">Font</label>
               <select id="fontFamily" name="fontFamily">
                 <% fonts.forEach(function(f) { %>
-                  <% if (pending && pending.fontFamily === f.family) { %>
+                  <% if (((pending && pending.fontFamily) || 'rodinntlg') === f.family) { %>
                     <option value="<%= f.family %>" data-file="<%= f.file %>" selected><%= f.name %></option>
                   <% } else { %>
                     <option value="<%= f.family %>" data-file="<%= f.file %>"><%= f.name %></option>
                   <% } %>
                 <% }); %>
               </select>
-              <div id="fontPreview" class="font-preview" aria-hidden="true">
-                <img id="fontPreviewImg" src="" alt="" style="display: none" />
-              </div>
             </div>
 
             <div class="field field-shrink">
@@ -392,19 +392,27 @@
         <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
       </form>
 
-      <!-- ── WiiLink notice ── -->
-      <aside class="wiilink-notice">
-        <h3>📡 Send to a Wii via WiiLink</h3>
-        <p>
-          You can send PictoCards directly to a Wii! Each Wii has a unique email address in the
-          format
-          <strong>w&lt;16-digit Wii Number&gt;@rc24.xyz</strong> (e.g.
-          <code>w1234567890123456@rc24.xyz</code>). Enter that address as the recipient above to
-          deliver your card straight to a Wii Message Board. The receipient must have
-          mail@pictocard.net registered in their address book in order to receive your card
-        </p>
-        <p><a href="/wii">Add PictoCard to your Wii's address book &rarr;</a></p>
+      <aside class="live-preview" id="livePreview" aria-label="Card preview">
+        <div class="preview-heading">
+          <h2 id="previewHeading">Live Preview</h2>
+          <button type="button" class="btn btn-secondary preview-close" id="closePreview">Close</button>
+        </div>
+        <div class="live-preview-content">
+          <div id="wiiLetterPreview" class="wii-letter-preview" hidden>
+            <h3>Letterhead</h3>
+            <img id="liveLetterhead" alt="Selected letterhead" hidden />
+            <h3>Message</h3>
+            <p id="liveLetterText"></p>
+          </div>
+          <h3 id="attachmentHeading" hidden>Attachment</h3>
+          <img id="liveCardImage" alt="Live card preview" hidden />
+        </div>
+        <p id="previewStatus" class="hint-text" role="status">Loading your preview…</p>
+        <p class="field-hint" id="previewDescription">Changes appear here as you edit. Nothing is sent until you confirm.</p>
       </aside>
+      </div>
+      <button type="button" class="btn btn-primary mobile-preview-toggle" id="openPreview"
+        aria-controls="livePreview" aria-expanded="false">Preview card</button>
     </main>
 
     <%- include('partials/footer') %>
@@ -448,6 +456,13 @@
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
         if (cardTextField) cardTextField.style.display = attach === 'card' ? '' : 'none';
+        for (const group of [imageGroup, fontRow, extras]) {
+          if (group) group.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !showCard;
+          });
+        }
+        if (imgField) imgField.querySelector('input').disabled = !wii || attach !== 'image';
+        if (cardTextField) cardTextField.querySelector('textarea').disabled = !wii || attach !== 'card';
         const text = document.getElementById('cardText');
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');
@@ -484,7 +499,7 @@
 
         for (const [method, panel] of [['email', emailPanel], ['discord', discordPanel], ['wii', wiiPanel]]) {
           if (panel) panel.querySelectorAll('input, select, textarea, button').forEach((field) => {
-            field.disabled = method !== tab;
+            field.disabled = method !== tab || field.dataset.wiiEnabled === '0';
           });
         }
         if (senderNameInput) senderNameInput.disabled = tab === 'discord';
@@ -540,49 +555,7 @@
         });
       })();
 
-      // Font live preview - loads a preview image named the same as the TTF file
-      (function () {
-        const fontSelect = document.getElementById('fontFamily');
-        const fontPreview = document.getElementById('fontPreview');
-        const previewImg = document.getElementById('fontPreviewImg');
-        if (!fontSelect || !previewImg) return;
-
-        // Build a lookup of safe family -> file pairs from server-rendered options
-        const knownFonts = {};
-        for (const opt of fontSelect.options) {
-          const fam = opt.value;
-          const file = opt.dataset.file || '';
-          // Only allow safe characters: alphanumeric, space, dash, dot, underscore
-          if (/^[\w\- .]+$/.test(fam) && /^[\w\-.]+\.ttf$/i.test(file)) {
-            knownFonts[fam] = file;
-          }
-        }
-
-        function applyFontPreview() {
-          const family = fontSelect.value;
-          const file = knownFonts[family];
-          if (!family || !file) {
-            previewImg.style.display = 'none';
-            return;
-          }
-          // Derive image path: same basename as TTF, with .png extension
-          const imgFile = file.replace(/\.ttf$/i, '.png');
-          previewImg.src = `/fonts/${imgFile}`;
-          previewImg.alt = family;
-          previewImg.style.display = 'block';
-        }
-
-        // Hide the preview box if the image fails to load (file not yet added)
-        previewImg.addEventListener('error', () => {
-          previewImg.style.display = 'none';
-        });
-        previewImg.addEventListener('load', () => {
-          previewImg.style.display = 'block';
-        });
-
-        fontSelect.addEventListener('change', applyFontPreview);
-        applyFontPreview(); // set initial preview
-      })();
     </script>
+    <script src="/js/editor.js" defer></script>
   </body>
 </html>
