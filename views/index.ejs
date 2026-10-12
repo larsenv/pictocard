@@ -188,7 +188,7 @@
             </div>
 
             <div class="field">
-              <label for="wiiMii">Wii Face (Optional)</label>
+              <label for="wiiMii">Mii Face (Optional)</label>
               <input type="file" id="wiiMii" name="wiiMii" />
               <span class="field-hint"
                 >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter. <%= pending && pending.wiiMiiData ? 'Leave empty to keep your current face.' : '' %></span
@@ -376,6 +376,16 @@
         </fieldset>
 
         <!-- ── Optional extras ── -->
+        <fieldset class="form-group" id="cardBackgroundGroup">
+          <legend>Text Background</legend>
+          <div class="radio-row">
+            <label><input type="radio" name="cardBackground" value="light"
+              <%= !pending || pending.cardBackground !== 'dark' ? 'checked' : '' %> /> Light</label>
+            <label><input type="radio" name="cardBackground" value="dark"
+              <%= pending && pending.cardBackground === 'dark' ? 'checked' : '' %> /> Dark</label>
+          </div>
+        </fieldset>
+
         <fieldset class="form-group extras" id="extrasGroup">
           <legend>Optional Extras</legend>
 
@@ -398,13 +408,7 @@
           <button type="button" class="btn btn-secondary preview-close" id="closePreview">Close</button>
         </div>
         <div class="live-preview-content">
-          <div id="wiiLetterPreview" class="wii-letter-preview" hidden>
-            <h3>Letterhead</h3>
-            <img id="liveLetterhead" alt="Selected letterhead" hidden />
-            <h3>Message</h3>
-            <p id="liveLetterText"></p>
-          </div>
-          <h3 id="attachmentHeading" hidden>Attachment</h3>
+          <%- include('partials/wii-preview') %>
           <img id="liveCardImage" alt="Live card preview" hidden />
         </div>
         <p id="previewStatus" class="hint-text" role="status">Loading your preview…</p>
@@ -445,6 +449,9 @@
         const wii = document.getElementById('deliveryMethod').value === 'wii';
         const attach = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
         const showCard = !wii || attach === 'card';
+        const backgroundGroup = document.getElementById('cardBackgroundGroup');
+        backgroundGroup.style.display = showCard ? '' : 'none';
+        backgroundGroup.querySelectorAll('input').forEach((field) => { field.disabled = !showCard; });
         const imageGroup = document.getElementById('cardImageGroup');
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
@@ -556,6 +563,7 @@
       })();
 
     </script>
+    <script src="/js/wii-preview.js" defer></script>
     <script src="/js/editor.js" defer></script>
   </body>
 </html>

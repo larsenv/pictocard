@@ -38,6 +38,7 @@ const { sendVerificationCode, sendCard, sendCardConfirmation, prepareCardAttachm
 const { generateCard } = require('../lib/cardGenerator');
 const { decodeMiiQr } = require('../lib/miiQr');
 const wiiMail = require('../lib/wiiMail');
+const { renderWiiLetter } = require('../lib/wiiPreview');
 const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
 const { verifyTurnstile, siteKey: turnstileSiteKey } = require('../lib/turnstile');
 const { isVerified: isEmailVerified, markVerified: markEmailVerified } = require('../lib/verifiedEmails');
@@ -148,6 +149,7 @@ function formDraft(req) {
   const text = (key) => typeof body[key] === 'string' ? body[key] : '';
   const method = text('deliveryMethod');
   const previous = req.session.pending || {};
+  const cardBackground = text('cardBackground') === 'dark' ? 'dark' : 'light';
   return {
     originalImage: previous.originalImage || null,
     miiData: previous.miiData || null,
@@ -157,7 +159,8 @@ function formDraft(req) {
     senderEmail: method === 'email' ? text('senderEmail').trim() || null : null,
     cardText: text('cardText').replace(/\r\n?/g, '\n'),
     fontFamily: text('fontFamily') || 'rodinntlg',
-    textColor: text('textColor') || '#111111',
+    textColor: text('textColor') || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
+    cardBackground,
     verifyViaDiscord: method === 'discord',
     wiiTab: method === 'wii',
     recipientWii: method === 'wii' ? text('recipientWii') || null : null,
@@ -313,6 +316,17 @@ async function readCardMii(req) {
   return mii;
 }
 
+function readWiiMii(req) {
+  const file = req.files?.wiiMii?.[0];
+  if (file) {
+    const mii = wiiMail.validateMii(file.buffer);
+    if (!mii) throw cardInputError('The Mii face must be a Wii Mii file (74 bytes, or 76 with the checksum).');
+    return mii;
+  }
+  const stored = req.session.pending?.wiiMiiData;
+  return stored ? Buffer.from(stored, 'base64') : null;
+}
+
 router.get('/form-token', (_req, res) => {
   res.set('Cache-Control', 'no-store').json({ csrfToken: res.locals.csrfToken });
 });
@@ -351,6 +365,7 @@ router.post('/card-preview', rateLimit({
         text: wii ? draft.wiiCardText.trim() || draft.cardText : draft.cardText,
         font: draft.fontFamily,
         textColor: draft.textColor,
+        background: draft.cardBackground,
         miiData: await readCardMii(req),
         includeDate: true
       });
@@ -358,9 +373,17 @@ router.post('/card-preview', rateLimit({
       else if (jpeg) buffer = await prepareCardAttachment(buffer);
     }
     const letterhead = wiiMail.findLetterhead(draft.letterhead);
+    const native = wii ? await renderWiiLetter({
+      senderName: draft.senderName,
+      text: draft.cardText,
+      letterhead: draft.letterhead,
+      mii: readWiiMii(req),
+      jpeg: buffer
+    }) : null;
     res.json({
       image: buffer ? `data:image/${jpeg ? 'jpeg' : 'png'};base64,${buffer.toString('base64')}` : null,
       wii,
+      native,
       text: wii ? wiiMail.wordWrap(draft.cardText) : '',
       letterhead: wii ? letterhead?.preview || '/images/letterheads/default.png' : null,
       needsImage: wii && attach === 'image' && !buffer
@@ -384,19 +407,13 @@ router.post('/card-preview', rateLimit({
  */
 async function createWiiPending(req, res, o) {
   const { redirectWithError } = o;
-  const files = req.files || {};
   const previous = req.session.pending || {};
   let imageBuffer = null;
   let picture = null;
   let cardMii = null;
 
   // Mii: only the 74-byte Wii format
-  let mii = null;
-  const miiFile = files.wiiMii && files.wiiMii[0];
-  if (miiFile) {
-    mii = wiiMail.validateMii(miiFile.buffer);
-    if (!mii) return redirectWithError('The Mii must be a Wii Mii file (74 bytes, or 76 with the checksum).');
-  } else if (previous.wiiMiiData) mii = Buffer.from(previous.wiiMiiData, 'base64');
+  const mii = readWiiMii(req);
 
   // Letterhead (optional)
   let letterheadId = '';
@@ -422,9 +439,10 @@ async function createWiiPending(req, res, o) {
       // Own card text if given, otherwise the letter's message
       text: (o.wiiCardText || '').trim() || o.cardText || '',
       font: o.fontFamily || 'rodinntlg',
-      textColor: o.textColor || '#111111',
+      textColor: o.textColor || (o.cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
+      background: o.cardBackground,
       senderName: o.effectiveSenderName,
-      miiData: cardMii, // the Mii drawn on the card (separate from the Wii Face)
+      miiData: cardMii,
       includeDate: true
     });
     jpeg = await wiiMail.toBaselineJpeg(card);
@@ -443,7 +461,8 @@ async function createWiiPending(req, res, o) {
     recipientWii: o.wiiCode,
     cardText: o.cardText || '',
     fontFamily: o.fontFamily || 'rodinntlg',
-    textColor: o.textColor || '#111111',
+    textColor: o.textColor || (o.cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
+    cardBackground: o.cardBackground || 'light',
     wiiTab: true,
     wiiAttach: attach,
     wiiCardText: o.wiiCardText || '',
@@ -492,6 +511,7 @@ router.post(
         cardText: submittedText,
         fontFamily,
         textColor,
+        cardBackground: submittedBackground,
         presetImage,
         senderEmail,
         recipientWii,
@@ -503,6 +523,7 @@ router.post(
 
       const usingDiscord = deliveryMethod === 'discord';
       const usingWii = deliveryMethod === 'wii';
+      const cardBackground = submittedBackground === 'dark' ? 'dark' : 'light';
       const cardText = typeof submittedText === 'string' ? submittedText.replace(/\r\n?/g, '\n') : '';
       const wiiCardText = typeof submittedCardText === 'string' ? submittedCardText.replace(/\r\n?/g, '\n') : '';
       const recipientEmail = deliveryMethod === 'email' ? submittedEmail : null;
@@ -601,6 +622,7 @@ router.post(
           wiiCardText,
           fontFamily,
           textColor,
+          cardBackground,
           presetImage,
           wiiAttach,
           letterhead
@@ -626,7 +648,8 @@ router.post(
         imageBuffer,
         text: cardText,
         font: fontFamily || 'rodinntlg',
-        textColor: textColor || '#111111',
+        textColor: textColor || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
+        background: cardBackground,
         senderName: effectiveSenderName,
         miiData,
         includeDate: true
@@ -644,10 +667,11 @@ router.post(
         recipientDiscord: recipientDiscord || null,
         cardText,
         fontFamily: fontFamily || 'rodinntlg',
-        textColor: textColor || '#111111',
+        textColor: textColor || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
         miiData: miiData ? miiData.toString('base64') : null,
         originalImage: imageBuffer.toString('base64'),
-        generatedCard: cardBuffer.toString('base64')
+        generatedCard: cardBuffer.toString('base64'),
+        cardBackground
       };
 
       // Email verification is a one-time step: a signed-in Discord user who has
@@ -697,6 +721,15 @@ router.get('/preview', async (req, res) => {
   if (!pending.wii && !pending.recipientDiscord) {
     const buffer = await prepareCardAttachment(Buffer.from(pending.generatedCard, 'base64'));
     previewDataUrl = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  }
+  if (wii) {
+    wii.native = await renderWiiLetter({
+      senderName: pending.senderName,
+      text: pending.cardText,
+      letterhead: pending.wii.letterhead,
+      mii: pending.wii.mii ? Buffer.from(pending.wii.mii, 'base64') : null,
+      jpeg: pending.wii.jpeg ? Buffer.from(pending.wii.jpeg, 'base64') : null
+    });
   }
   res.render('preview', {
     previewDataUrl,

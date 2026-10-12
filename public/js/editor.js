@@ -5,19 +5,16 @@
   const preview = document.getElementById('livePreview');
   const image = document.getElementById('liveCardImage');
   const letter = document.getElementById('wiiLetterPreview');
-  const letterhead = document.getElementById('liveLetterhead');
-  const letterText = document.getElementById('liveLetterText');
   const status = document.getElementById('previewStatus');
   const heading = document.getElementById('previewHeading');
   const description = document.getElementById('previewDescription');
-  const attachmentHeading = document.getElementById('attachmentHeading');
   const message = document.getElementById('cardText');
   const cardMessage = document.getElementById('wiiCardText');
   const counter = document.getElementById('charCounter');
   const toggle = document.getElementById('openPreview');
   const close = document.getElementById('closePreview');
   const fields = new Set(['cardImage', 'presetImage', 'cardText', 'fontFamily', 'textColor',
-    'miiFile', 'wiiImage', 'wiiCardText', 'letterhead', 'wiiAttach']);
+    'miiFile', 'wiiMii', 'senderName', 'wiiImage', 'wiiCardText', 'letterhead', 'wiiAttach', 'cardBackground']);
   let timer;
   let revision = 0;
   let running = false;
@@ -74,20 +71,18 @@
       }
       message.setCustomValidity('');
       cardMessage.setCustomValidity('');
-      image.hidden = !result.image;
-      heading.textContent = result.wii ? 'Wii Letter Contents' : 'Live Preview';
-      attachmentHeading.hidden = !result.wii || !result.image;
+      image.hidden = result.wii || !result.image;
+      heading.textContent = result.wii ? 'Wii Letter Preview' : 'Live Preview';
       description.textContent = result.wii
-        ? 'Your Wii lays out the letter. Attached images below are shown exactly as sent.'
+        ? 'Wii layout preview. Select the thumbnail to view the attachment.'
         : document.getElementById('deliveryMethod').value === 'discord'
           ? 'This is the image sent in the Discord message. Nothing is sent until you confirm.'
           : 'This is the image sent by email. Nothing is sent until you confirm.';
-      if (result.image) image.src = result.image;
+      if (result.image && !result.wii) image.src = result.image;
       letter.hidden = !result.wii;
-      letterText.textContent = result.text || 'Your Wii message will appear here.';
-      letterhead.hidden = !result.letterhead;
-      if (result.letterhead) letterhead.src = result.letterhead;
+      if (result.wii) document.dispatchEvent(new CustomEvent('wii-preview-update', { detail: result }));
       status.textContent = result.needsImage ? 'Choose a picture to see your attachment.' : 'Preview is up to date.';
+      if (result.native?.faceUnavailable) status.textContent += ' Face preview unavailable.';
       counter.textContent = `${message.value.length} / 500`;
     } catch {
       if (current === revision) {
@@ -120,6 +115,14 @@
     const value = valueOf(field);
     if (fieldValues.get(field) === value) return;
     fieldValues.set(field, value);
+    if (field.name === 'cardBackground') {
+      const color = document.getElementById('textColor');
+      if (['#111111', '#f5f5f7'].includes(color.value)) {
+        color.value = field.value === 'dark' ? '#f5f5f7' : '#111111';
+        document.getElementById('colorLabel').textContent = color.value;
+        fieldValues.set(color, valueOf(color));
+      }
+    }
     schedulePreview();
   }
   form.addEventListener('input', fieldChanged);
