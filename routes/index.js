@@ -143,6 +143,28 @@ function generateCode() {
 // code is invalidated and a new one must be requested.
 const MAX_CODE_ATTEMPTS = 5;
 
+function formDraft(req) {
+  const body = req.body || {};
+  const text = (key) => typeof body[key] === 'string' ? body[key] : '';
+  const method = text('deliveryMethod');
+  const previous = req.session.pending || {};
+  return {
+    originalImage: previous.originalImage || null,
+    miiData: previous.miiData || null,
+    recipientEmail: method === 'email' ? text('recipientEmail').trim() || null : null,
+    recipientDiscord: method === 'discord' ? text('recipientDiscord').trim() || null : null,
+    senderName: text('senderName').trim(),
+    senderEmail: method === 'email' ? text('senderEmail').trim() || null : null,
+    cardText: text('cardText').slice(0, 500),
+    fontFamily: text('fontFamily') || 'RodinNTLG',
+    textColor: text('textColor') || '#111111',
+    verifyViaDiscord: method === 'discord',
+    wiiTab: method === 'wii',
+    recipientWii: method === 'wii' ? text('recipientWii') || null : null,
+    senderWii: method === 'wii' ? text('senderWii') || null : null
+  };
+}
+
 // ── GET / ────────────────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
   res.render('index', {
@@ -353,16 +375,23 @@ router.post(
   createLimiter,
   (req, res, next) => {
     uploadFields(req, res, (err) => {
-      if (err) return next(err);
-      validateCsrf(req, res, next);
+      validateCsrf(req, res, () => {
+        if (!err) return next();
+        req.session.pending = formDraft(req);
+        if (!(err instanceof multer.MulterError)) return next(err);
+        req.session.formError = err.code === 'LIMIT_FILE_SIZE'
+          ? 'That file is too large. Please choose one under 10 MB.'
+          : 'Could not accept the upload. Please choose your files again.';
+        res.redirect('/');
+      });
     });
   },
   async (req, res) => {
     try {
       const {
         deliveryMethod,
-        recipientEmail,
-        recipientDiscord,
+        recipientEmail: submittedEmail,
+        recipientDiscord: submittedDiscord,
         senderName,
         cardText,
         fontFamily,
@@ -381,28 +410,18 @@ router.post(
 
       const usingDiscord = deliveryMethod === 'discord';
       const usingWii = deliveryMethod === 'wii';
+      const recipientEmail = deliveryMethod === 'email' ? submittedEmail : null;
+      const recipientDiscord = usingDiscord ? submittedDiscord : null;
 
-      // On a validation failure we redisplay the form. Refresh the session's
-      // pending text fields with what was just submitted (keeping any existing
-      // image/card data) so stale data from an earlier successful attempt
-      // doesn't linger in the form - or worse, get sent - instead of this one.
+      // A failed edit keeps reusable uploads but invalidates the old sendable card.
       function redirectWithError(message) {
         req.session.formError = message;
-        req.session.pending = {
-          ...(req.session.pending || {}),
-          recipientEmail: recipientEmail || null,
-          recipientDiscord: recipientDiscord || null,
-          senderName: (senderName || '').trim(),
-          senderEmail: senderEmail || null,
-          cardText: (cardText || '').slice(0, 500),
-          fontFamily: fontFamily || 'RodinNTLG',
-          textColor: textColor || '#111111',
-          verifyViaDiscord: usingDiscord,
-          wiiTab: usingWii,
-          recipientWii: recipientWii || null,
-          senderWii: senderWii || null
-        };
+        req.session.pending = formDraft(req);
         return res.redirect('/');
+      }
+
+      if (!['email', 'discord', 'wii'].includes(deliveryMethod)) {
+        return redirectWithError('Please select a delivery method.');
       }
 
       // Turnstile captcha guards every submission (email and Discord alike).
@@ -589,24 +608,7 @@ router.post(
     } catch (err) {
       console.error('[POST /create]', err);
       req.session.formError = 'Something went wrong. Please try again.';
-      // Refresh pending text fields with this attempt's submission so the
-      // re-shown form (and any later send) reflects what was just typed,
-      // not a stale earlier attempt.
-      const body = req.body || {};
-      req.session.pending = {
-        ...(req.session.pending || {}),
-        recipientEmail: body.recipientEmail || null,
-        recipientDiscord: body.recipientDiscord || null,
-        senderName: (body.senderName || '').trim(),
-        senderEmail: body.senderEmail || null,
-        cardText: (body.cardText || '').slice(0, 500),
-        fontFamily: body.fontFamily || 'RodinNTLG',
-        textColor: body.textColor || '#111111',
-        verifyViaDiscord: body.deliveryMethod === 'discord',
-        wiiTab: body.deliveryMethod === 'wii',
-        recipientWii: body.recipientWii || null,
-        senderWii: body.senderWii || null
-      };
+      req.session.pending = formDraft(req);
       res.redirect('/');
     }
   }
@@ -648,7 +650,7 @@ router.get('/preview', (req, res) => {
 // ── POST /verify-request ──────────────────────────────────────────────────────
 router.post('/verify-request', verifyRequestIpLimiter, verifyRequestTargetLimiter, async (req, res) => {
   const pending = req.session.pending;
-  if (!pending) return res.redirect('/');
+  if (!pending || !(pending.generatedCard || pending.wii)) return res.redirect('/');
 
   try {
     const code = generateCode();
@@ -700,7 +702,7 @@ router.get('/verify', (req, res) => {
 // ── POST /verify ─────────────────────────────────────────────────────────────
 router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => {
   const pending = req.session.pending;
-  if (!pending) return res.redirect('/');
+  if (!pending || !(pending.generatedCard || pending.wii)) return res.redirect('/');
 
   const { code, retry } = req.body || {};
 
@@ -810,6 +812,11 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
         ).catch((err) => console.error('[sendConfirmationViaDM]', err));
       }
     } else {
+      if (emailOptOuts.has(hashEmail(pending.recipientEmail))) {
+        req.session.formError = 'That recipient has opted out of receiving PictoCards.';
+        delete req.session.pending;
+        return res.redirect('/');
+      }
       await sendCard(
         pending.recipientEmail,
         pending.senderName,
