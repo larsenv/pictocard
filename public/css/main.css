@@ -322,15 +322,16 @@ code {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-hover);
   color: #fff;
+  font-weight: 700;
 }
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--accent-active);
   color: #fff;
 }
 .btn-primary:active {
-  background: var(--accent-active);
+  background: #333b94;
 }
 
 .btn-secondary {
@@ -830,4 +831,87 @@ input[type='color'] {
 }
 .card-form > .cf-turnstile {
   margin-bottom: 20px;
+}
+
+/* ── Input with a leading symbol (e.g. @username) ── */
+.input-prefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-prefix > span {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+.input-prefix > input {
+  padding-left: 36px !important;
+}
+
+/* ── Wii letter preview ── */
+.wii-letter {
+  width: 100%;
+  max-width: 512px;
+  margin: 0 auto 20px;
+  text-align: left;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: #fff;
+  color: #333;
+}
+.wii-letter-head {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 512 / 376;
+  object-fit: cover;
+  object-position: top;
+  max-height: 200px;
+}
+.wii-letter-body {
+  padding: 18px 24px 22px;
+  font-size: 1rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-top: 1px solid #ddd;
+}
+.wii-letter-body p {
+  margin: 0;
+}
+.wii-letter-from {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 8px;
+}
+.wii-letter-attach {
+  padding: 0 24px 22px;
+}
+.wii-letter-attach img {
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+/* ── FAQ ── */
+.faq {
+  margin-top: 40px;
+}
+.faq details {
+  background: var(--bg-secondary);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+.faq summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.faq details p {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
 }

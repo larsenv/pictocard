@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <%- include('partials/head', { 
-      metaDescription: 'Opt out or opt in to receiving PictoCards at your email address. Control your email preferences.', 
-      ogTitle: 'PictoCard - Email Preferences',
-      ogDescription: 'Control whether you receive PictoCards at your email address.', 
+      metaDescription: 'Opt out or opt back in to receiving PictoCards by email, on your Wii Message Board or on Discord.', 
+      ogTitle: 'PictoCard - Opt Out or Opt In',
+      ogDescription: 'Control whether you receive PictoCards by email, on a Wii or on Discord.', 
       ogUrl: domain + '/optout', 
       canonicalUrl: domain + '/optout' 
     }) %>
@@ -14,23 +14,27 @@
 
     <main class="container container-narrow">
       <section class="hero">
-        <h1>Email Preferences</h1>
-        <p class="hero-sub">Control whether you receive PictoCards at your email address.</p>
+        <h1>Opt Out or Opt In</h1>
+        <p class="hero-sub">
+          Control whether you receive PictoCards by email, on your Wii or on Discord.
+        </p>
       </section>
 
+      <% var label = { email: 'email address', wii: 'Wii', discord: 'Discord account' }; %>
       <% if (success) { %>
       <div class="alert alert-success">
-        <% if (doneAction === 'optin') { %> ✅ You have been opted back in. You can now receive
-        PictoCards at that address again. <% } else { %> ✅ You have been opted out. You will no
-        longer receive PictoCards at that address. <% } %>
+        <% if (doneAction === 'optin') { %> ✅ You have been opted back in. You can receive
+        PictoCards on that <%= label[doneMethod] || 'address' %> again. <% } else { %> ✅ You have
+        been opted out. You will no longer receive PictoCards on that <%= label[doneMethod] ||
+        'address' %>. <% } %>
       </div>
       <% } %> <% if (error) { %>
       <div class="alert alert-error"><%= error %></div>
-      <% } %> <% if (!success) { %> <% if (step === 'verify') { %> <%/* ── Code verification step
-      ──────────────────────────────── */%>
+      <% } %> <% if (!success) { %> <% if (step === 'verify') { %>
       <p class="hint-text">
-        A 6-digit verification code has been sent to
-        <strong><%= email %></strong>. Enter it below to confirm your choice.
+        A 6-digit verification code has been sent <%= method === 'wii' ? 'to the Wii' : 'to' %>
+        <strong><%= target %></strong><%= method === 'wii' ? ' (it arrives after that Wii next checks its mail)' : '' %>.
+        Enter it below to confirm your choice.
       </p>
       <form action="/optout/verify" method="POST" class="card-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
@@ -50,48 +54,75 @@
         <button type="submit" class="btn btn-primary">Confirm</button>
       </form>
       <p>
-        <a href="/optout<%= action === 'optin' ? '?action=optin' : '' %>">← Start over</a>
+        <a href="/optout?method=<%= method %><%= action === 'optin' ? '&action=optin' : '' %>">← Start over</a>
       </p>
 
-      <% } else { %> <%/* ── Main form step ─────────────────────────────────────── */%>
+      <% } else { %>
+      <div class="delivery-tabs" style="margin-bottom: 8px">
+        <a href="/optout?method=email<%= action === 'optin' ? '&action=optin' : '' %>" class="tab-btn<%= method === 'email' ? ' tab-active' : '' %>">✉️ Email</a>
+        <a href="/optout?method=wii<%= action === 'optin' ? '&action=optin' : '' %>" class="tab-btn<%= method === 'wii' ? ' tab-active' : '' %>">📡 Wii</a>
+        <a href="/optout?method=discord<%= action === 'optin' ? '&action=optin' : '' %>" class="tab-btn<%= method === 'discord' ? ' tab-active' : '' %>">💬 Discord</a>
+      </div>
       <div class="delivery-tabs" style="margin-bottom: 16px">
-        <a href="/optout" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>">Opt Out</a>
-        <a href="/optout?action=optin" class="tab-btn<%= action === 'optin' ? ' tab-active' : '' %>"
-          >Opt Back In</a
-        >
+        <a href="/optout?method=<%= method %>" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>">Opt Out</a>
+        <a href="/optout?method=<%= method %>&action=optin" class="tab-btn<%= action === 'optin' ? ' tab-active' : '' %>">Opt Back In</a>
       </div>
 
+      <% if (method === 'discord') { %>
+      <% if (!discordOAuthEnabled) { %>
+      <p class="hint-text">
+        Use the <code>/optout</code> or <code>/optin</code> slash command in any server where the
+        PictoCard bot is present.
+      </p>
+      <% } else if (!discordUser) { %>
+      <div class="discord-login-prompt">
+        <a href="/discord" class="btn btn-discord">Log in with Discord to continue</a>
+        <span class="field-hint">Logging in proves the account is yours, so no code is needed.</span>
+      </div>
+      <% } else { %>
+      <form action="/optout/discord" method="POST" class="card-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <input type="hidden" name="action" value="<%= action %>" />
+        <p class="hint-text" style="margin-top: 0">
+          Signed in as <strong><%= discordUser.displayName %></strong>. You are currently
+          <strong><%= discordOptedOut ? 'opted out' : 'opted in' %></strong>.
+        </p>
+        <button type="submit" class="btn <%= action === 'optin' ? 'btn-secondary' : 'btn-primary' %>">
+          <%= action === 'optin' ? 'Opt Back In' : 'Opt Out' %>
+        </button>
+      </form>
+      <% } %>
+      <% } else if (method === 'wii' && !wiiEnabled) { %>
+      <p class="hint-text">Wii delivery isn't set up yet. Please check back soon.</p>
+      <% } else { %>
       <form action="/optout/request" method="POST" class="card-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <input type="hidden" name="action" value="<%= action %>" />
+        <input type="hidden" name="method" value="<%= method %>" />
         <div class="field">
+          <% if (method === 'wii') { %>
+          <label for="wii">Your Wii Number</label>
+          <input type="text" id="wii" name="wii" required inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" value="<%= target %>" autocomplete="off" />
+          <% } else { %>
           <label for="email">Your Email Address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            required
-            placeholder="you@example.com"
-            value="<%= email %>"
-          />
+          <input type="email" id="email" name="email" required placeholder="you@example.com" value="<%= target %>" />
+          <% } %>
         </div>
-        <% if (action === 'optin') { %>
-        <button type="submit" class="btn btn-secondary">Opt Back In</button>
-        <% } else { %>
-        <button type="submit" class="btn btn-primary">Opt Out</button>
-        <% } %>
+        <button type="submit" class="btn <%= action === 'optin' ? 'btn-secondary' : 'btn-primary' %>">
+          <%= action === 'optin' ? 'Opt Back In' : 'Opt Out' %>
+        </button>
       </form>
 
       <p class="hint-text">
-        A verification code will be sent to your email to confirm your choice.
+        A verification code will be sent <%= method === 'wii' ? 'to your Wii Message Board' : 'to your email' %> to confirm your choice.
       </p>
-      <% } %> <% } %>
+      <% } %> <% } %> <% } %>
 
       <hr />
 
       <p class="hint-text">
-        <strong>Discord users:</strong> If you would like to opt out of receiving cards via Discord,
-        use the <code>/optout</code> slash command in any server where the PictoCard bot is present.
+        <strong>Discord users:</strong> you can also use the <code>/optout</code> and
+        <code>/optin</code> slash commands in any server where the PictoCard bot is present.
       </p>
     </main>
 

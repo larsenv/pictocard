@@ -1,0 +1,19 @@
+# PictoCard
+
+> PictoCard is a free, open-source web service for creating and sending custom picture greeting cards by email, as a Discord DM, or as a letter to a Nintendo Wii Message Board (via WiiConnect24 / WiiLink).
+
+## What it does
+- Upload any photo or choose a preset, write a message (up to 500 characters), pick a font and text color.
+- Optionally add a Mii to the card.
+- Deliver by email, by Discord DM (Discord login, no verification code), or to a Wii by its 16-digit Wii Number.
+- Wii letters support a Mii face, a picture or PictoCard attachment, and Wii letterheads.
+- Recipients can opt out and back in for email, Wii and Discord at any time.
+
+## Pages
+- [Send a PictoCard](https://pictocard.net/): the card creator and FAQ
+- [Add PictoCard to your Wii](https://pictocard.net/wii): one-time friend request so a Wii can receive PictoCards
+- [Opt out or opt in](https://pictocard.net/optout): email, Wii and Discord preferences
+- [Privacy](https://pictocard.net/privacy) and [Terms](https://pictocard.net/tos)
+
+## Source
+- https://github.com/larsenv/pictocard

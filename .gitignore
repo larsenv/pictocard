@@ -6,3 +6,5 @@ uploads/
 data/wc24-friends.json
 data/verified-emails.json
 data/wc24-received/
+
+data/optouts.json

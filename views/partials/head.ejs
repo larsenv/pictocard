@@ -2,8 +2,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title><%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard - send customizable greeting cards by email or Discord' %></title>
 <meta name="description" content="<%- (typeof metaDescription !== 'undefined' && metaDescription) ? metaDescription : 'PictoCard - send customizable greeting cards by email or Discord.' %>" />
-<meta name="keywords" content="PictoCard, greeting cards, digital cards, email cards, Discord cards, personalized cards, iCards alternative" />
+<meta name="keywords" content="PictoCard, greeting cards, digital cards, e-cards, email cards, Discord cards, Wii Message Board, send message to Wii, WiiConnect24, Wii letter, personalized photo cards, iCards alternative, free greeting card maker" />
 <meta name="theme-color" content="#1A1A1E" />
+<meta name="author" content="PictoCard" />
+<meta name="application-name" content="PictoCard" />
 <% if (typeof metaRobots !== 'undefined' && metaRobots) { %>
 <meta name="robots" content="<%- metaRobots %>" />
 <% } %>
@@ -16,6 +18,8 @@
 <meta property="og:description" content="<%- (typeof ogDescription !== 'undefined' && ogDescription) ? ogDescription : 'Send customizable greeting cards by email or Discord' %>" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="PictoCard" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:image:alt" content="PictoCard logo" />
 <meta property="og:image" content="<%= domain %>/apple-touch-icon.png" />
 <% if (typeof ogUrl !== 'undefined' && ogUrl) { %>
 <meta property="og:url" content="<%- ogUrl %>" />
@@ -26,6 +30,7 @@
 <meta name="twitter:title" content="<%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard' %>" />
 <meta name="twitter:description" content="<%- (typeof ogDescription !== 'undefined' && ogDescription) ? ogDescription : 'Send customizable greeting cards by email or Discord' %>" />
 <meta name="twitter:image" content="<%= domain %>/apple-touch-icon.png" />
+<meta name="twitter:image:alt" content="PictoCard logo" />
 
 <!-- Structured Data -->
 <script type="application/ld+json">
@@ -35,14 +40,26 @@
       "@type": "WebApplication",
       "name": "PictoCard",
       "url": "<%= domain %>",
-      "description": "Create and send customizable greeting cards by email or on Discord.",
+      "description": "Create and send customizable greeting cards by email, on Discord, or to a Nintendo Wii Message Board.",
       "applicationCategory": "MultimediaApplication",
       "operatingSystem": "Web",
+      "browserRequirements": "Requires a modern web browser",
+      "featureList": ["Custom photo greeting cards", "Send by email", "Send as a Discord DM", "Send to a Wii Message Board", "Wii letterheads and Mii faces", "Custom fonts and text colors", "Opt out any time"],
+      "isAccessibleForFree": true,
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "codeRepository": "https://github.com/larsenv/pictocard",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD"
       }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "PictoCard",
+      "url": "<%= domain %>",
+      "inLanguage": "en"
     },
     {
       "@context": "https://schema.org",
@@ -53,6 +70,17 @@
     }
   ]
 </script>
+<% if (typeof faq !== 'undefined' && faq && faq.length) { %>
+<script type="application/ld+json">
+  <%- JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map(function (f) {
+      return { '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } };
+    })
+  }).replace(/</g, '\\u003c') %>
+</script>
+<% } %>
 
 <link rel="stylesheet" href="/css/main.css" />
 <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
