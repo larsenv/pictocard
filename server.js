@@ -32,6 +32,54 @@ if (!fs.existsSync(viewsPath)) {
 // Trust reverse-proxy headers (needed for req.ip behind nginx/Caddy)
 app.set('trust proxy', 1);
 
+app.disable('x-powered-by');
+
+// Views build URLs as `${domain}/path`, so a trailing slash in the config
+// would produce `//` (e.g. https://pictocard.net//apple-touch-icon.png).
+config.domain = String(config.domain || '').trim().replace(/\/+$/, '');
+
+// A shipped placeholder secret would let anyone forge session cookies.
+const DEFAULT_SECRETS = ['change-this-to-a-random-string', '', undefined];
+if (DEFAULT_SECRETS.includes(config.sessionSecret)) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[Fatal] sessionSecret is not set. Set a long random value in config.js.');
+    process.exit(1);
+  }
+  console.warn('[Security] sessionSecret is the example value - set a real one before deploying.');
+}
+
+// ── Security headers ─────────────────────────────────────────────────────────
+// Scripts must come from this site (or Turnstile) or carry the per-request nonce.
+app.use((_req, res, next) => {
+  const nonce = require('crypto').randomBytes(16).toString('base64');
+  res.locals.nonce = nonce;
+  res.set({
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com`,
+      "script-src-attr 'none'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      'frame-src https://challenges.cloudflare.com',
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'"
+    ].join('; '),
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'Cross-Origin-Opener-Policy': 'same-origin'
+  });
+  if (process.env.NODE_ENV === 'production') {
+    res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
 // ── Body parsers ─────────────────────────────────────────────────────────────
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -55,6 +103,43 @@ app.use(
 
 // ── CSRF protection (all state-changing routes) ───────────────────────────────
 app.use(csrf({ multipartPaths: ['/create', '/card-preview', '/mii-import'] }));
+
+// ── robots.txt and sitemap.xml (built from the configured domain) ───────────
+const SITEMAP_PAGES = [
+  { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/wii', changefreq: 'monthly', priority: '0.7' },
+  { path: '/optout', changefreq: 'monthly', priority: '0.3' },
+  { path: '/tos', changefreq: 'monthly', priority: '0.3' },
+  { path: '/privacy', changefreq: 'monthly', priority: '0.3' }
+];
+const AI_CRAWLERS = [
+  'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot',
+  'PerplexityBot', 'Google-Extended', 'Applebot-Extended'
+];
+
+app.get('/robots.txt', (_req, res) => {
+  const lines = ['User-agent: *'];
+  for (const p of ['/preview', '/verify', '/discord', '/create', '/verify-request', '/card-preview', '/mii-import', '/image-import']) {
+    lines.push(`Disallow: ${p}`);
+  }
+  lines.push('Allow: /', '', '# AI search and answer engines are welcome to read and cite the public pages');
+  for (const bot of AI_CRAWLERS) lines.push(`User-agent: ${bot}`, 'Allow: /');
+  lines.push('', `Sitemap: ${config.domain}/sitemap.xml`, '');
+  res.type('text/plain').send(lines.join('\n'));
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  const urls = SITEMAP_PAGES.map(
+    (p) => `  <url>
+    <loc>${config.domain}${p.path === '/' ? '/' : p.path}</loc>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`
+  ).join('\n');
+  res
+    .type('application/xml')
+    .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+});
 
 // ── Static files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
