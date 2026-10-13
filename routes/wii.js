@@ -59,7 +59,9 @@ router.post('/', limiter, async (req, res) => {
     });
   } catch (err) {
     console.error('[POST /wii]', err.message);
-    render(res, { error: 'Could not send the friend request. Please try again later.' });
+    render(res, { error: err.code === 'WC24_UNCERTAIN'
+      ? 'The friend request could not be confirmed. Check your Wii address book before trying again.'
+      : 'Could not send the friend request. Please try again later.' });
   }
 });
 

@@ -36,7 +36,7 @@
         <strong><%= target %></strong><%= method === 'wii' ? ' (it arrives after that Wii next checks its mail)' : '' %>.
         Enter it below to confirm your choice.
       </p>
-      <form action="/optout/verify" method="POST" class="card-form">
+      <form action="/optout/verify" method="POST" class="card-form preference-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <div class="field">
           <label for="code">Verification Code</label>
@@ -64,7 +64,7 @@
         <a href="/optout?method=discord<%= action === 'optin' ? '&action=optin' : '' %>" class="tab-btn<%= method === 'discord' ? ' tab-active' : '' %>">💬 Discord</a>
       </div>
       <div class="delivery-tabs" style="margin-bottom: 16px">
-        <a href="/optout?method=<%= method %>" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>">Opt Out</a>
+        <a href="/optout?method=<%= method %>" class="tab-btn<%= action !== 'optin' ? ' tab-active' : '' %>" <%= action !== 'optin' ? 'aria-current=page' : '' %>>Opt Out</a>
         <a href="/optout?method=<%= method %>&action=optin" class="tab-btn<%= action === 'optin' ? ' tab-active' : '' %>">Opt Back In</a>
       </div>
 
@@ -95,7 +95,7 @@
       <% } else if (method === 'wii' && !wiiEnabled) { %>
       <p class="hint-text">Wii delivery isn't set up yet. Please check back soon.</p>
       <% } else { %>
-      <form action="/optout/request" method="POST" class="card-form">
+      <form action="/optout/request" method="POST" class="card-form preference-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <input type="hidden" name="action" value="<%= action %>" />
         <input type="hidden" name="method" value="<%= method %>" />
@@ -108,9 +108,7 @@
           <input type="email" id="email" name="email" required placeholder="you@example.com" value="<%= target %>" />
           <% } %>
         </div>
-        <button type="submit" class="btn <%= action === 'optin' ? 'btn-secondary' : 'btn-primary' %>">
-          <%= action === 'optin' ? 'Opt Back In' : 'Opt Out' %>
-        </button>
+        <button type="submit" class="btn btn-primary">Send Verification Code</button>
       </form>
 
       <p class="hint-text">
