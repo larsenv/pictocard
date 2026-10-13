@@ -167,7 +167,7 @@ test('email preference controls have clear spacing and the selected action is pr
   await page.getByRole('link', { name: 'Opt Back In', exact: true }).click();
   await expect(page.locator('input[name="action"]')).toHaveValue('optin');
   await expect(page.locator('.delivery-tabs a[aria-current="page"]')).toHaveText('Opt Back In');
-  await expect(page.locator('.site-footer')).toHaveText('© PictoCard');
+  await expect(page.locator('.site-footer')).toHaveText(`© ${new Date().getFullYear()} PictoCard. All rights reserved.`);
   await expect(page.locator('.site-footer a')).toHaveCount(0);
 });
 
