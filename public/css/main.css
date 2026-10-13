@@ -1161,3 +1161,27 @@ input[type='url'] {
 input[type='url']:focus {
   border-color: var(--accent);
 }
+
+/* ── Mii source tabs ── */
+.mii-tabs {
+  margin: 8px 0 12px;
+}
+.mii-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 2px dashed transparent;
+  border-radius: var(--radius);
+  padding: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mii-drop.drag-over {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+.mii-drop [hidden] {
+  display: none;
+}
+.field-label {
+  font-weight: 600;
+}

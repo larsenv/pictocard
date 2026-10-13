@@ -400,38 +400,38 @@
               <summary><span>Add a Mii</span><span class="field-hint">.mii / .ffsd / .charinfo / .mnms</span></summary>
 
               <div class="field">
-                <label for="miiSource">Mii on the PictoCard</label>
+                <span class="field-label" id="miiTabsLabel">Mii on the PictoCard</span>
                 <span class="field-hint">Loading or previewing a Mii sends its data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>. ID lookups also send the entered NNID or PNID.</span>
-                <select id="miiSource">
-                  <option value="file">Mii file</option>
-                  <option value="nnid">Nintendo Network ID</option>
-                  <option value="pnid">Pretendo Network ID</option>
-                  <option value="data">Mii data or Studio URL</option>
-                  <option value="qr">QR code image</option>
-                  <option value="amiibo">amiibo dump</option>
-                </select>
-                <div id="miiFileField">
-                  <label for="miiFile" class="sr-only">Choose a Mii file</label>
+                <input type="hidden" id="miiSource" value="nnid" />
+                <div class="delivery-tabs mii-tabs" role="tablist" aria-labelledby="miiTabsLabel">
+                  <button type="button" class="tab-btn tab-active" role="tab" aria-selected="true" data-mii-tab="nnid">NNID</button>
+                  <button type="button" class="tab-btn" role="tab" aria-selected="false" data-mii-tab="pnid">PNID</button>
+                  <button type="button" class="tab-btn" role="tab" aria-selected="false" data-mii-tab="file">File / Data</button>
+                  <button type="button" class="tab-btn" role="tab" aria-selected="false" data-mii-tab="qr">QR Code</button>
+                </div>
+                <div id="miiDrop" class="mii-drop">
+                <div id="miiLookupField">
+                  <label for="miiLookup" id="miiLookupLabel">Nintendo Network ID</label>
+                  <input type="text" id="miiLookup" maxlength="16" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. JasmineChlora" />
+                </div>
+                <div id="miiFileField" hidden>
+                  <label for="miiFile" id="miiFileLabel">Upload a Mii file</label>
                   <input type="file" id="miiFile" name="miiFile" />
                 </div>
-                <div id="miiLookupField" hidden>
-                  <label for="miiLookup" id="miiLookupLabel">Nintendo Network ID</label>
-                  <input type="text" id="miiLookup" maxlength="16" autocomplete="off" placeholder="Enter an ID" />
-                </div>
                 <div id="miiCodeField" hidden>
-                  <label for="miiCode">Mii data or Studio image URL</label>
-                  <textarea id="miiCode" rows="3" maxlength="4096" placeholder="Paste hex, Base64, or an image URL containing Mii data"></textarea>
+                  <label for="miiCode">Or paste hex, Base64 or a Mii Studio URL</label>
+                  <textarea id="miiCode" rows="3" maxlength="4096" placeholder="AwBgMIJUICvp…"></textarea>
+                </div>
                 </div>
                 <input type="hidden" id="cardMiiData" name="cardMiiData" value="<%= pending && pending.miiData || '' %>" />
                 <div class="mii-actions">
-                  <button type="button" class="btn btn-secondary" id="loadCardMii">Load Mii</button>
                   <button type="button" class="btn btn-secondary" id="removeCardMii" <%= pending && pending.miiData ? '' : 'hidden' %>>Remove Mii</button>
                 </div>
                 <div class="mii-result">
                   <img id="cardMiiThumbnail" alt="Selected Mii" hidden />
-                  <span id="cardMiiStatus" class="field-hint" role="status"><%= pending && pending.miiData ? 'Current Mii kept. Load another to replace it.' : 'Optional. Choose a source to add your Mii.' %></span>
+                  <span id="cardMiiStatus" class="field-hint" role="status"><%= pending && pending.miiData ? 'Current Mii kept. Load another to replace it.' : 'Optional. Your Mii loads as soon as you enter or choose it.' %></span>
                 </div>
-                <span class="field-hint" id="miiSourceHint">Wii, 3DS, Wii U, Switch, or Mii Studio data. The Mii is drawn onto the PictoCard image.</span>
+                <span class="field-hint" id="miiSourceHint">Loads the Mii attached to that Nintendo account. You can also drop a file or QR image here.</span>
               </div>
             </details>
           </div>

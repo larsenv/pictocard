@@ -1,5 +1,7 @@
 'use strict';
 
+// Mii input: pick a source tab, then the Mii loads on its own as soon as there
+// is something to load (typing an ID, choosing/dropping a file, pasting data).
 (() => {
   const form = document.getElementById('cardForm');
   const source = document.getElementById('miiSource');
@@ -7,42 +9,71 @@
   const lookup = document.getElementById('miiLookup');
   const code = document.getElementById('miiCode');
   const stored = document.getElementById('cardMiiData');
-  const load = document.getElementById('loadCardMii');
   const remove = document.getElementById('removeCardMii');
   const status = document.getElementById('cardMiiStatus');
   const image = document.getElementById('cardMiiThumbnail');
   const hint = document.getElementById('miiSourceHint');
+  const drop = document.getElementById('miiDrop');
+  const tabs = [...document.querySelectorAll('[data-mii-tab]')];
   let busy = false;
+  let requestId = 0;
+  let timer;
 
-  function selectSource() {
-    const fromId = ['nnid', 'pnid'].includes(source.value);
+  const HINTS = {
+    nnid: 'Loads the Mii attached to that Nintendo Network account. You can also drop a file or QR image here.',
+    pnid: 'Loads the Mii attached to that Pretendo Network account. You can also drop a file or QR image here.',
+    file: 'A Wii, 3DS, Wii U, Switch or Mii Studio file, or an amiibo dump (532 or 540 bytes). Drop it here or paste the data.',
+    qr: 'A photo or screenshot of a Mii QR code from a 3DS, Wii U or Switch 2. Drop it here or paste it from your clipboard.'
+  };
+
+  function selectTab(tab) {
+    source.value = tab;
+    const fromId = ['nnid', 'pnid'].includes(tab);
+    for (const button of tabs) {
+      const active = button.dataset.miiTab === tab;
+      button.classList.toggle('tab-active', active);
+      button.setAttribute('aria-selected', String(active));
+    }
     document.getElementById('miiLookupField').hidden = !fromId;
-    document.getElementById('miiCodeField').hidden = source.value !== 'data';
-    document.getElementById('miiFileField').hidden = fromId || source.value === 'data';
-    document.getElementById('miiLookupLabel').textContent = source.value === 'pnid'
-      ? 'Pretendo Network ID' : 'Nintendo Network ID';
-    file.accept = source.value === 'qr' ? 'image/*' : '';
+    document.getElementById('miiFileField').hidden = fromId;
+    document.getElementById('miiCodeField').hidden = tab !== 'file';
+    document.getElementById('miiLookupLabel').textContent = tab === 'pnid' ? 'Pretendo Network ID' : 'Nintendo Network ID';
+    document.getElementById('miiFileLabel').textContent = tab === 'qr' ? 'Upload a Mii QR code image' : 'Upload a Mii file';
+    file.accept = tab === 'qr' ? 'image/*' : '';
     file.value = '';
     file.setCustomValidity('');
-    hint.textContent = source.value === 'qr' ? 'Choose a Mii QR code image from a 3DS, Wii U, or Switch 2.'
-      : source.value === 'amiibo' ? 'Choose an encrypted or decrypted amiibo dump (532 or 540 bytes).'
-      : source.value === 'data' ? 'Paste the data itself or a Studio image URL containing a data parameter.'
-      : fromId ? 'Loads the Mii attached to that Nintendo or Pretendo account.'
-      : 'Wii, 3DS, Wii U, Switch, or Mii Studio data. The Mii is drawn onto the PictoCard image.';
+    hint.textContent = HINTS[tab];
+    if (fromId && lookup.value.trim()) loadSoon();
+  }
+
+  function report(text, isError) {
+    status.textContent = text;
+    status.classList.toggle('preview-error', !!isError);
+  }
+
+  function ready() {
+    if (file.files[0]) return true;
+    if (['nnid', 'pnid'].includes(source.value)) return /^[a-z\d._-]{4,16}$/i.test(lookup.value.trim());
+    if (source.value === 'file') return code.value.trim().length >= 16;
+    return false;
   }
 
   async function loadMii() {
-    if (busy) return;
+    clearTimeout(timer);
+    if (!ready()) return;
+    const id = ++requestId;
     const body = new FormData();
     body.set('_csrf', form.elements._csrf.value);
-    body.set('source', source.value);
-    body.set('value', source.value === 'data' ? code.value : lookup.value);
-    if (file.files[0]) body.set('miiImportFile', file.files[0]);
+    const picked = file.files[0];
+    // An image on the File tab can only be a QR code
+    const kind = picked && picked.type.startsWith('image/') && source.value === 'file' ? 'qr' : source.value;
+    body.set('source', kind === 'file' && !picked ? 'data' : kind);
+    body.set('value', source.value === 'file' ? code.value : lookup.value);
+    if (picked) body.set('miiImportFile', picked);
     busy = true;
-    load.disabled = remove.disabled = source.disabled = true;
+    remove.disabled = true;
     form.querySelector('button[type="submit"]').disabled = true;
-    status.textContent = 'Loading Mii…';
-    status.classList.remove('preview-error');
+    report(kind === 'qr' ? 'Scanning QR code…' : 'Loading Mii…');
     try {
       let response = await fetch('/mii-import', { method: 'POST', body });
       if (response.status === 403) {
@@ -55,36 +86,87 @@
       }
       const result = response.headers.get('content-type')?.includes('application/json')
         ? await response.json() : { error: 'Could not load your Mii. Please try again shortly.' };
+      if (id !== requestId) return; // a newer request replaced this one
       if (!response.ok) throw new Error(result.error);
       stored.value = result.data;
       image.src = result.image;
       image.hidden = remove.hidden = false;
       file.value = '';
       file.setCustomValidity('');
-      status.textContent = `${result.name} loaded onto the PictoCard.`;
+      report(['nnid', 'pnid'].includes(source.value) ? `Found ${result.name}!` : `✓ ${result.name} loaded onto the PictoCard.`);
       stored.dispatchEvent(new Event('change', { bubbles: true }));
     } catch (error) {
-      status.textContent = `${error.message || 'Could not load your Mii.'}${stored.value && stored.value !== 'remove' ? ' Your current Mii is kept.' : ''}`;
-      status.classList.add('preview-error');
+      if (id !== requestId) return;
+      report(`✗ ${error.message || 'Could not load your Mii.'}${stored.value && stored.value !== 'remove' ? ' Your current Mii is kept.' : ''}`, true);
       file.value = '';
     } finally {
-      busy = false;
-      const active = document.getElementById('extrasGroup').style.display !== 'none';
-      load.disabled = source.disabled = remove.disabled = !active;
-      form.querySelector('button[type="submit"]').disabled = false;
+      if (id === requestId) {
+        busy = false;
+        remove.disabled = false;
+        form.querySelector('button[type="submit"]').disabled = false;
+      }
     }
   }
-  source.addEventListener('change', selectSource);
+
+  function loadSoon() {
+    clearTimeout(timer);
+    timer = setTimeout(loadMii, 500);
+  }
+
+  function takeFile(picked) {
+    if (!picked) return;
+    // Screenshots and photos are QR codes; anything else is Mii data
+    if (picked.type.startsWith('image/') && source.value !== 'qr') selectTab('qr');
+    else if (!picked.type.startsWith('image/') && ['nnid', 'pnid', 'qr'].includes(source.value)) selectTab('file');
+    const transfer = new DataTransfer();
+    transfer.items.add(picked);
+    file.files = transfer.files;
+    loadMii();
+  }
+
+  for (const button of tabs) button.addEventListener('click', () => selectTab(button.dataset.miiTab));
+  lookup.addEventListener('input', loadSoon);
+  lookup.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      loadMii();
+    }
+  });
+  code.addEventListener('input', loadSoon);
   file.addEventListener('change', () => { if (file.files[0]) loadMii(); });
-  load.addEventListener('click', loadMii);
+
+  drop.addEventListener('dragover', (event) => {
+    if (![...event.dataTransfer.types].includes('Files')) return;
+    event.preventDefault();
+    drop.classList.add('drag-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', (event) => {
+    drop.classList.remove('drag-over');
+    const dropped = event.dataTransfer.files[0];
+    if (!dropped) return;
+    event.preventDefault();
+    takeFile(dropped);
+  });
+  // Pasting a screenshot of a QR code anywhere in the Mii section loads it
+  document.getElementById('extrasGroup').addEventListener('paste', (event) => {
+    const pasted = [...(event.clipboardData?.files || [])][0];
+    if (!pasted) return;
+    event.preventDefault();
+    takeFile(pasted);
+  });
+
   remove.addEventListener('click', () => {
+    requestId++;
     stored.value = 'remove';
     file.value = '';
     file.setCustomValidity('');
+    lookup.value = '';
+    code.value = '';
     image.hidden = remove.hidden = true;
-    status.textContent = 'Mii removed.';
-    status.classList.remove('preview-error');
+    report('Mii removed.');
     stored.dispatchEvent(new Event('change', { bubbles: true }));
   });
   form.addEventListener('submit', (event) => { if (busy) event.preventDefault(); });
+  selectTab('nnid');
 })();
