@@ -2,11 +2,12 @@
 <html lang="en">
   <head>
     <%- include('partials/head', { 
-      metaDescription: 'Create and send customizable greeting cards by email or on Discord. Upload any photo, write your message, pick your font and color. A free and simple iCards alternative.', 
+      metaDescription: 'Create and send customizable greeting cards by email, on Discord or to a Wii Message Board. Upload any photo, write your message, pick your font and color. A free and simple iCards alternative.', 
       ogTitle: 'PictoCard - Send a Greeting Card', 
       ogDescription: 'Create and send customizable greeting cards by email or on Discord', 
       ogUrl: domain + '/', 
-      canonicalUrl: domain + '/' 
+      canonicalUrl: domain + '/',
+      faq: faq
     }) %>
   </head>
   <body>
@@ -44,7 +45,7 @@
         id="cardForm"
       >
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-        <% var discordTab = !!(pending && pending.verifyViaDiscord); var wiiTab = !!(pending && pending.wiiTab); %>
+        <% var discordTab = !!(pending && pending.verifyViaDiscord); var wiiTab = !!(pending && pending.wiiTab); var wiiAttachSel = (pending && pending.wii && pending.wii.attach) || 'none'; var letterheadSel = (pending && pending.wii && pending.wii.letterhead) || ''; %>
 
         <!-- ── Recipient (tab switcher) ── -->
         <fieldset class="form-group">
@@ -128,14 +129,17 @@
             <% } %> <% } %>
             <div class="field">
               <label for="recipientDiscord">Discord Username</label>
-              <input
-                type="text"
-                id="recipientDiscord"
-                name="recipientDiscord"
-                placeholder="discordusername"
-                autocomplete="off"
-                value="<%= (pending && pending.recipientDiscord) || '' %>"
-              />
+              <div class="input-prefix">
+                <span aria-hidden="true">@</span>
+                <input
+                  type="text"
+                  id="recipientDiscord"
+                  name="recipientDiscord"
+                  placeholder="discordusername"
+                  autocomplete="off"
+                  value="<%= (pending && pending.recipientDiscord) || '' %>"
+                />
+              </div>
               <span class="field-hint"
                 >Enter the recipient's Discord username (no @). The PictoCard bot must share a
                 server with them.
@@ -195,9 +199,9 @@
             <div class="field">
               <label>Attachment (Optional)</label>
               <div class="radio-row">
-                <label><input type="radio" name="wiiAttach" value="none" checked /> None</label>
-                <label><input type="radio" name="wiiAttach" value="image" /> Picture</label>
-                <label><input type="radio" name="wiiAttach" value="card" /> PictoCard</label>
+                <label><input type="radio" name="wiiAttach" value="none" <%= wiiAttachSel === 'none' ? 'checked' : '' %> /> None</label>
+                <label><input type="radio" name="wiiAttach" value="image" <%= wiiAttachSel === 'image' ? 'checked' : '' %> /> Picture</label>
+                <label><input type="radio" name="wiiAttach" value="card" <%= wiiAttachSel === 'card' ? 'checked' : '' %> /> PictoCard</label>
               </div>
               <div id="wiiImageField" style="display: none">
                 <input
@@ -230,12 +234,12 @@
             <% if (letterheadGroups && letterheadGroups.length > 0) { %>
             <div class="field">
               <label>Letterhead</label>
-              <details class="letterhead-details">
+              <details class="letterhead-details"<%= letterheadSel ? ' open' : '' %>>
                 <summary>Choose a Letterhead</summary>
                 <h4 class="letterhead-group">Default</h4>
                 <div class="letterhead-gallery">
                   <label class="preset-option" title="Default (no letterhead)">
-                    <input type="radio" name="letterhead" value="" checked />
+                    <input type="radio" name="letterhead" value="" <%= letterheadSel === '' ? 'checked' : '' %> />
                     <img src="/images/letterheads/default.png" alt="Default letterhead" loading="lazy" />
                   </label>
                 </div>
@@ -244,7 +248,7 @@
                 <div class="letterhead-gallery">
                   <% g.items.forEach(function(l) { %>
                   <label class="preset-option" title="<%= l.name %>">
-                    <input type="radio" name="letterhead" value="<%= l.id %>" />
+                    <input type="radio" name="letterhead" value="<%= l.id %>" <%= letterheadSel === l.id ? 'checked' : '' %> />
                     <img src="<%= l.preview %>" alt="<%= l.name %>" loading="lazy" />
                   </label>
                   <% }); %>
@@ -322,7 +326,7 @@
             <div class="preset-gallery">
               <% presets.forEach(function(src) { %>
               <label class="preset-option">
-                <input type="radio" name="presetImage" value="<%= src %>" />
+                <input type="radio" name="presetImage" value="<%= src %>" <%= (pending && pending.presetImage === src) ? 'checked' : '' %> />
                 <img src="<%= src %>" alt="PictoCard Preset Card Background" loading="lazy" />
               </label>
               <% }); %>
@@ -405,6 +409,16 @@
         </p>
         <p><a href="/wii">Add PictoCard to your Wii's address book &rarr;</a></p>
       </aside>
+
+      <section class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Frequently Asked Questions</h2>
+        <% faq.forEach(function(f) { %>
+        <details>
+          <summary><%= f.q %></summary>
+          <p><%= f.a %></p>
+        </details>
+        <% }); %>
+      </section>
     </main>
 
     <%- include('partials/footer') %>
@@ -422,12 +436,18 @@
         });
       }
 
-      // Color picker label sync
+      // Color picker label sync (also after back/forward restores the form)
       const colorInput = document.getElementById('textColor');
       const colorLabel = document.getElementById('colorLabel');
       if (colorInput && colorLabel) {
-        colorInput.addEventListener('input', () => {
+        const syncColor = () => {
           colorLabel.textContent = colorInput.value;
+        };
+        colorInput.addEventListener('input', syncColor);
+        window.addEventListener('pageshow', () => {
+          syncColor();
+          if (ta && counter) counter.textContent = `${ta.value.length} / 500`;
+          applyWiiMode();
         });
       }
 

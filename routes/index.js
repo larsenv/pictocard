@@ -96,8 +96,7 @@ async function checkContentModeration(text) {
   }
 }
 
-// In-memory opt-out set for email addresses (no persistence)
-const emailOptOuts = new Set();
+const { emailOptOuts, wiiOptOuts } = require('../lib/optouts');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -143,6 +142,33 @@ function generateCode() {
 // code is invalidated and a new one must be requested.
 const MAX_CODE_ATTEMPTS = 5;
 
+const FAQ = [
+  {
+    "q": "What is PictoCard?",
+    "a": "PictoCard is a free service for creating and sending custom picture greeting cards. Upload a photo, write a message, pick a font and color, and deliver the card by email, as a Discord DM, or to a Nintendo Wii Message Board."
+  },
+  {
+    "q": "Can I send a message to a Wii Message Board?",
+    "a": "Yes. Enter the recipient's 16-digit Wii Number on the Send to a Wii tab. The Wii must first add PictoCard to its address book, which is a one-time friend request you can send from the Add PictoCard to your Wii page. Letters can include a Mii face, a picture, a PictoCard and a Wii letterhead."
+  },
+  {
+    "q": "Is PictoCard free?",
+    "a": "Yes. PictoCard is free and open source, with no account needed to send by email or to a Wii."
+  },
+  {
+    "q": "How do I send a card on Discord?",
+    "a": "Log in with Discord, invite the PictoCard bot to a server you share with the recipient, then enter their username on the Send via Discord tab. Signed-in Discord users do not need a verification code."
+  },
+  {
+    "q": "Is PictoCard an alternative to Apple iCards?",
+    "a": "PictoCard is inspired by the simplicity of Apple's iCards: your own image, your own text, beautiful fonts and no clutter, delivered by email, Discord or Wii."
+  },
+  {
+    "q": "How do I stop receiving PictoCards?",
+    "a": "Use the Opt Out page to opt out your email address, your Wii Number or your Discord account. You can opt back in any time."
+  }
+];
+
 // ── GET / ────────────────────────────────────────────────────────────────────
 router.get('/', (req, res) => {
   res.render('index', {
@@ -162,7 +188,8 @@ router.get('/', (req, res) => {
     pending: req.session.pending || null,
     turnstileSiteKey: turnstileSiteKey(),
     letterheadGroups: wiiMail.letterheadGroups(),
-    wiiEnabled: !!wc24Config()
+    wiiEnabled: !!wc24Config(),
+    faq: FAQ
   });
   delete req.session.formError;
 });
@@ -333,6 +360,7 @@ async function createWiiPending(req, res, o) {
     cardText: (o.cardText || '').slice(0, 500),
     fontFamily: o.fontFamily || 'RodinNTLG',
     textColor: o.textColor || '#111111',
+    presetImage: o.presetImage || null,
     wiiTab: true,
     wii: {
       mii: mii ? mii.toString('base64') : null,
@@ -397,6 +425,7 @@ router.post(
           cardText: (cardText || '').slice(0, 500),
           fontFamily: fontFamily || 'RodinNTLG',
           textColor: textColor || '#111111',
+          presetImage: presetImage || null,
           verifyViaDiscord: usingDiscord,
           wiiTab: usingWii,
           recipientWii: recipientWii || null,
@@ -456,6 +485,7 @@ router.post(
       if (usingWii) {
         if (!wc24Config()) return redirectWithError("Wii delivery isn't set up yet. Please check back soon.");
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
+        if (wiiOptOuts.has(wiiCode)) return redirectWithError('That Wii has opted out of receiving PictoCards.');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');
       } else if (!recipientEmail && !recipientDiscord) {
         return redirectWithError('Please enter a recipient email or Discord username.');
@@ -568,10 +598,18 @@ router.post(
         cardText: safeCardText,
         fontFamily: fontFamily || 'RodinNTLG',
         textColor: textColor || '#111111',
+        presetImage: cardImageFile ? null : presetImage || (req.session.pending && req.session.pending.presetImage) || null,
         miiData: miiData ? miiData.toString('base64') : null,
         originalImage: imageBuffer.toString('base64'),
         generatedCard: cardBuffer.toString('base64')
       };
+
+      // A Discord user signed in through OAuth has already proven who they are,
+      // so no verification code is sent to them.
+      if (usingDiscord && req.session.discordUser) {
+        req.session.pending.codeVerified = true;
+        req.session.pending.skipVerify = true;
+      }
 
       // Email verification is a one-time step: a signed-in Discord user who has
       // already verified this sender address may skip the emailed code. The
@@ -638,6 +676,7 @@ router.get('/preview', (req, res) => {
     recipientDiscord: pending.recipientDiscord,
     cardText: pending.cardText,
     wii,
+    wiiText: wii ? wiiMail.wordWrap(pending.cardText || '').replace(/\r/g, '') : '',
     sendError,
     canRetryDirectly: !!pending.codeVerified,
     skipVerify: !!pending.skipVerify,
@@ -763,6 +802,11 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
   }
   try {
     if (pending.wii) {
+      if (wiiOptOuts.has(pending.recipientWii)) {
+        req.session.formError = 'That Wii has opted out of receiving PictoCards.';
+        delete req.session.pending;
+        return res.redirect('/');
+      }
       try {
         await sendWiiMail({
           recipient: pending.recipientWii,
@@ -773,10 +817,11 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
           letterheadArc: pending.wii.letterhead ? wiiMail.readLetterheadArc(pending.wii.letterhead) : null
         });
       } catch (err) {
-        console.error('[Wii mail]', err.message);
+        console.error('[Send] wii FAILED', pending.recipientWii, err.message);
         req.session.previewSendError = 'Could not deliver the card to that Wii. Check the Wii Number and that PictoCard is in its address book.';
         return res.redirect('/preview');
       }
+      console.log(`[Send] wii ok recipient=${pending.recipientWii}`);
       delete req.session.pending;
       return res.redirect('/?sent=1');
     }
@@ -801,6 +846,7 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
         req.session.previewSendError = `Could not deliver card: ${result.error}`;
         return res.redirect('/preview');
       }
+      console.log(`[Send] discord ok recipient=${username}`);
       if (pending.senderDiscord || pending.senderDiscordUserId) {
         sendConfirmationViaDM(
           pending.senderDiscord,
@@ -817,6 +863,7 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => 
         cardBuffer,
         pending.senderEmail
       );
+      console.log(`[Send] email ok recipient=${pending.recipientEmail}`);
       if (pending.senderEmail) {
         sendCardConfirmation(
           pending.senderEmail,

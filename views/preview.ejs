@@ -30,13 +30,22 @@
 
       <% if (wii) { %>
       <div class="preview-wrapper">
-        <% if (wii.letterhead) { %>
-        <img src="<%= wii.letterhead.preview %>" alt="Letterhead: <%= wii.letterhead.name %>" class="card-preview-img" />
-        <% } %>
-        <p class="hero-sub" style="white-space: pre-wrap"><%= cardText %></p>
-        <% if (previewDataUrl) { %>
-        <img src="<%= previewDataUrl %>" alt="Attachment Preview" class="card-preview-img" />
-        <% } %>
+        <article class="wii-letter">
+          <% if (wii.letterhead) { %>
+          <img src="<%= wii.letterhead.preview %>" alt="Letterhead: <%= wii.letterhead.name %>" class="wii-letter-head" />
+          <% } else { %>
+          <img src="/images/letterheads/default.png" alt="Default letterhead" class="wii-letter-head" />
+          <% } %>
+          <div class="wii-letter-body">
+            <% if (senderName) { %><div class="wii-letter-from">From <%= senderName %></div><% } %>
+            <p><%= wiiText %></p>
+          </div>
+          <% if (previewDataUrl) { %>
+          <div class="wii-letter-attach">
+            <img src="<%= previewDataUrl %>" alt="Attachment Preview" />
+          </div>
+          <% } %>
+        </article>
         <p class="hint-text">
           <%= wii.hasMii ? 'Includes your Mii. ' : '' %><%= wii.letterhead ? 'Letterhead: ' + wii.letterhead.name + '.' : '' %>
         </p>
