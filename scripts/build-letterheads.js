@@ -20,13 +20,14 @@ const sharp = require('sharp');
 
 const SRC = process.argv[2];
 const ALL = process.argv.includes('--all');
+const NATIVE = process.argv.includes('--native');
 if (!SRC) {
   console.error('usage: node scripts/build-letterheads.js <WMB-Letterhead dir> [--all]');
   process.exit(1);
 }
 
 const ROOT = path.join(__dirname, '..');
-const PREVIEW_DIR = path.join(ROOT, 'public', 'images', 'letterheads');
+const PREVIEW_DIR = path.join(ROOT, 'public', 'images', NATIVE ? 'wii-letters' : 'letterheads');
 const ARC_DIR = path.join(ROOT, 'data', 'letterheads');
 
 const W = 512;
@@ -81,7 +82,7 @@ async function compose(lettersDir, thumb) {
   }
   if (layers.length < 9) throw new Error(`only ${layers.length}/9 letter tiles`);
   // Envelope icon -> bottom-left corner
-  if (thumb && fs.existsSync(thumb)) {
+  if (!NATIVE && thumb && fs.existsSync(thumb)) {
     const { height } = await sharp(thumb).metadata();
     layers.push({ input: thumb, left: 8, top: H - height - 8 });
   }
@@ -98,9 +99,21 @@ async function build(arcPath, group, name) {
   try {
     fs.copyFileSync(arcPath, path.join(tmp, 'a.arc'));
     execFileSync('wszst', ['xx', 'a.arc'], { cwd: tmp, stdio: 'pipe' });
+    let lettersDir = path.join(tmp, 'a.d', 'letter_LZ.bin.d', 'img');
+    let thumb = path.join(tmp, 'a.d', 'thumbnail_LZ.bin.d', 'img', 'my_LetterS_b.tpl.png');
+    if (!fs.existsSync(lettersDir)) {
+      // Wiimm tools alone do not unpack Nintendo LZ10 streams on every installation.
+      for (const name of NATIVE ? ['letter'] : ['letter', 'thumbnail']) {
+        const unpacked = path.join(tmp, `${name}.u8`);
+        execFileSync('ndspy_lz10', ['decompress', path.join(tmp, 'a.d', `${name}_LZ.bin`), unpacked]);
+        execFileSync('wszst', ['extract', unpacked, '--decode', '--dest', path.join(tmp, name)], { stdio: 'pipe' });
+      }
+      lettersDir = path.join(tmp, 'letter', 'img');
+      thumb = path.join(tmp, 'thumbnail', 'img', 'my_LetterS_b.tpl.png');
+    }
     return await compose(
-      path.join(tmp, 'a.d', 'letter_LZ.bin.d', 'img'),
-      path.join(tmp, 'a.d', 'thumbnail_LZ.bin.d', 'img', 'my_LetterS_b.tpl.png')
+      lettersDir,
+      thumb
     );
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -121,7 +134,7 @@ async function build(arcPath, group, name) {
     try {
       const png = await build(arc, group, file);
       fs.writeFileSync(path.join(PREVIEW_DIR, `${id}.png`), png);
-      fs.copyFileSync(arc, path.join(ARC_DIR, `${id}.arc`));
+      if (!NATIVE) fs.copyFileSync(arc, path.join(ARC_DIR, `${id}.arc`));
       manifest.push({ id, group, name: file });
       console.log('ok  ', id);
     } catch (err) {
@@ -137,6 +150,15 @@ async function build(arcPath, group, name) {
     );
     console.log('ok   default');
   }
-  fs.writeFileSync(path.join(ARC_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  if (NATIVE) {
+    const original = path.join(ROOT, 'public', 'images', 'letterheads', 'default.png');
+    // The default has no archive here. Restore the paper under its gallery-only envelope.
+    const patch = await sharp(original).extract({ left: 160, top: 273, width: 32, height: 103 })
+      .resize(144, 103, { fit: 'fill', kernel: 'nearest' }).png().toBuffer();
+    await sharp(original).composite([{ input: patch, left: 8, top: 273 }])
+      .toFile(path.join(PREVIEW_DIR, 'default.png'));
+  } else {
+    fs.writeFileSync(path.join(ARC_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  }
   console.log(`${manifest.length} letterheads`);
 })();

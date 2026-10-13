@@ -13,7 +13,7 @@ test.describe('PictoCard E2E Tests', () => {
 
     // Check H1 and H2
     await expect(page.locator('h1')).toHaveText(/Send a PictoCard/i);
-    await expect(page.locator('h2.hero-keywords')).toHaveText(/The simple way to send custom photo cards and personalized e-cards./i);
+    await expect(page.locator('.hero-sub')).toContainText('WiiLink!');
   });
 
   test('Form interaction pre-fills correctly', async ({ page }) => {
