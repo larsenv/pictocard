@@ -4,6 +4,47 @@ import sharp from 'sharp';
 
 const image = path.resolve('public/images/logo.png');
 
+for (const width of [390, 1440]) {
+  test(`preview mode and guidance switch immediately while an older render is pending (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    if (width === 390) await page.locator('#openPreview').click();
+    const card = await page.locator('#liveCardImage').getAttribute('src');
+    let release;
+    let requested;
+    let delayWii = true;
+    const held = new Promise((resolve) => { release = resolve; });
+    const seen = new Promise((resolve) => { requested = resolve; });
+    await page.route('**/card-preview', async (route) => {
+      if (delayWii && route.request().postDataBuffer().includes(Buffer.from('name="deliveryMethod"\r\n\r\nwii'))) {
+        delayWii = false;
+        requested();
+        await held;
+        await route.abort().catch(() => {});
+      } else await route.continue();
+    });
+    await page.locator('#tabWii').click();
+    await expect(page.locator('#previewHeading')).toHaveText('Wii letter preview');
+    await expect(page.locator('#previewDescription')).toContainText("This is the letter they'll receive.");
+    await expect(page.locator('#liveCardImage')).toBeHidden();
+    await expect(page.locator('#previewStatus')).toBeVisible();
+    await seen;
+    await page.locator('#tabEmail').click();
+    await expect(page.locator('#previewHeading')).toHaveText('Live preview');
+    await expect(page.locator('#previewDescription')).toContainText("This is the card image they'll receive.");
+    await expect(page.locator('#liveCardImage')).toBeVisible();
+    await expect(page.locator('#liveCardImage')).toHaveAttribute('src', card);
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    release();
+    await page.locator('#tabWii').click();
+    await expect(page.locator('#liveLetterhead')).toBeVisible();
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    await page.locator('input[name="wiiAttach"][value="card"]').check();
+    await expect(page.locator('#previewDescription')).toContainText('Select the attachment to enlarge it.');
+  });
+}
+
 test('Wii attachment collapse matches the thumbnail without moving the letter', async ({ page }) => {
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });

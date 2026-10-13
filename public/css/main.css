@@ -619,7 +619,7 @@ input[type='color'] {
 }
 #previewStatus { margin: 0; padding: 10px 19px 0; font-size: 14px; }
 #previewDescription { display: block; padding: 8px 19px 14px; font-size: 14px; }
-#previewStatus:not(.preview-error) { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+#previewStatus:not(.preview-error):not(.preview-pending) { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
 
 .live-preview-content [hidden] {
   display: none;
