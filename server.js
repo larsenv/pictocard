@@ -24,7 +24,7 @@ app.set('view engine', 'ejs');
 const viewsPath = path.join(__dirname, 'views');
 app.set('views', viewsPath);
 app.use((req, res, next) => {
-  res.locals.currentPath = req.path.replace(/\/+$/, '') || '/';
+  res.locals.currentPath = req.path.replace(/\/+$/, '').toLowerCase() || '/';
   next();
 });
 
