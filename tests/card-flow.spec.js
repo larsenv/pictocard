@@ -12,7 +12,7 @@ test('a card can be previewed, edited, and rebuilt with the retained image', asy
   await page.fill('#recipientEmail', 'friend@example.com');
   await page.fill('#cardText', 'Hello there');
   await page.setInputFiles('#cardImage', image);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Review your card' }).click();
   await expect(page).toHaveURL(/\/preview$/);
   const preview = page.getByAltText('Card Preview');
   await expect(preview).toBeVisible();
@@ -22,7 +22,7 @@ test('a card can be previewed, edited, and rebuilt with the retained image', asy
   await expect(page.locator('#cardText')).toHaveValue('Hello there');
   await expect(page.locator('#charCounter')).toHaveText('11 / 500');
   await page.fill('#cardText', 'Updated message');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Review your card' }).click();
   await expect(page).toHaveURL(/\/preview$/);
   expect(await page.getByAltText('Card Preview').getAttribute('src')).not.toBe(originalCard);
   expect(errors).toEqual([]);
@@ -31,10 +31,10 @@ test('a card can be previewed, edited, and rebuilt with the retained image', asy
 test('returning to a Discord draft leaves hidden sender fields disabled', async ({ page }) => {
   await page.goto('/');
   await page.locator('#tabDiscord').click();
-  await page.fill('#recipientDiscord', 'friend');
+  await page.fill('#recipientDiscord', '@friend');
   await page.fill('#cardText', 'Hello');
   await page.setInputFiles('#cardImage', image);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Review your card' }).click();
   await expect(page).toHaveURL(/\/preview$/);
   await page.getByRole('link', { name: 'Edit Card' }).click();
   await expect(page.locator('#recipientDiscord')).toBeVisible();
@@ -42,7 +42,7 @@ test('returning to a Discord draft leaves hidden sender fields disabled', async 
   await expect(page.locator('#senderName')).toBeDisabled();
   await expect(page.locator('#senderEmail')).toBeDisabled();
   await page.fill('#cardText', 'Edited Discord message');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Review your card' }).click();
   await expect(page).toHaveURL(/\/preview$/);
 });
 
@@ -52,7 +52,7 @@ test('an invalid email in a hidden tab cannot block Discord preview', async ({ p
   await page.locator('#tabDiscord').click();
   await page.fill('#recipientDiscord', 'friend');
   await page.setInputFiles('#cardImage', image);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Review your card' }).click();
   await expect(page).toHaveURL(/\/preview$/);
 });
 
@@ -60,7 +60,7 @@ test('the form works at a phone viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.locator('#senderName')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review your card' })).toBeVisible();
   await page.locator('#tabDiscord').click();
   await expect(page.locator('#recipientDiscord')).toBeVisible();
   await expect(page.locator('#recipientEmail')).toBeDisabled();

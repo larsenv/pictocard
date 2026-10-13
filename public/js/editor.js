@@ -24,10 +24,36 @@
     if (fields.has(field.name)) fieldValues.set(field, valueOf(field));
   }
 
+  const pictureInput = document.getElementById('cardImage');
+  const pictureThumbnail = document.getElementById('pictureThumbnail');
+  const pictureName = document.getElementById('pictureFileName');
+  const choosePicture = document.getElementById('choosePicture');
+  choosePicture.addEventListener('click', () => pictureInput.click());
+
+  function showPicture(source, name) {
+    pictureThumbnail.src = source;
+    pictureThumbnail.hidden = false;
+    pictureName.textContent = name;
+    choosePicture.textContent = 'Change picture';
+  }
+  pictureThumbnail.addEventListener('error', () => { pictureThumbnail.hidden = true; });
+  pictureInput.addEventListener('change', () => {
+    const file = pictureInput.files[0];
+    if (!file) return;
+    for (const preset of form.querySelectorAll('[name="presetImage"]')) {
+      preset.checked = false;
+      fieldValues.set(preset, valueOf(preset));
+    }
+    const url = URL.createObjectURL(file);
+    pictureThumbnail.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+    pictureThumbnail.addEventListener('error', () => URL.revokeObjectURL(url), { once: true });
+    showPicture(url, file.name);
+  });
+
   function showPreview(open) {
     preview.classList.toggle('preview-open', open);
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.textContent = open ? 'Close preview' : 'Preview card';
+    toggle.textContent = open ? 'Close' : 'Open';
   }
   toggle.addEventListener('click', () => showPreview(!preview.classList.contains('preview-open')));
   close.addEventListener('click', () => { showPreview(false); toggle.focus(); });
@@ -37,6 +63,19 @@
       toggle.focus();
     }
   });
+
+  const content = document.querySelector('.live-preview-content');
+  function alignPreviewGrid() {
+    const active = letter.hidden ? image : letter;
+    const height = active.hidden ? 0 : active.getBoundingClientRect().height;
+    if (!height) return;
+    const rows = Math.floor((height + 38) / 14);
+    content.style.setProperty('--preview-gap', `${(rows * 14 - height) / 2}px`);
+  }
+  const previewSize = new ResizeObserver(alignPreviewGrid);
+  previewSize.observe(image);
+  previewSize.observe(letter);
+  image.addEventListener('load', alignPreviewGrid);
 
   async function updatePreview() {
     if (running) return;
@@ -72,12 +111,12 @@
       message.setCustomValidity('');
       cardMessage.setCustomValidity('');
       image.hidden = result.wii || !result.image;
-      heading.textContent = result.wii ? 'Wii Letter Preview' : 'Live Preview';
+      heading.textContent = result.wii ? 'Wii letter preview' : 'Live preview';
       description.textContent = result.wii
         ? 'Select the attachment to enlarge it. Select it again to return to the letter.'
         : document.getElementById('deliveryMethod').value === 'discord'
           ? 'This is the image sent in the Discord message. Nothing is sent until you confirm.'
-          : 'This is the image sent by email. Nothing is sent until you confirm.';
+          : "This is the card image they'll receive. You'll review everything before sending.";
       if (result.image && !result.wii) image.src = result.image;
       letter.hidden = !result.wii;
       if (result.wii) document.dispatchEvent(new CustomEvent('wii-preview-update', { detail: result }));
@@ -115,6 +154,11 @@
     const value = valueOf(field);
     if (fieldValues.get(field) === value) return;
     fieldValues.set(field, value);
+    if (field.name === 'presetImage' && field.checked) {
+      pictureInput.value = '';
+      fieldValues.set(pictureInput, valueOf(pictureInput));
+      showPicture(field.value, 'Preset picture');
+    }
     if (field.name === 'cardBackground') {
       const color = document.getElementById('textColor');
       if (['#111111', '#f5f5f7'].includes(color.value)) {

@@ -3,7 +3,7 @@
 <title><%- (typeof ogTitle !== 'undefined' && ogTitle) ? ogTitle : 'PictoCard - send customizable greeting cards by email or Discord' %></title>
 <meta name="description" content="<%- (typeof metaDescription !== 'undefined' && metaDescription) ? metaDescription : 'PictoCard - send customizable greeting cards by email or Discord.' %>" />
 <meta name="keywords" content="PictoCard, greeting cards, digital cards, email cards, Discord cards, personalized cards, iCards alternative" />
-<meta name="theme-color" content="#1A1A1E" />
+<meta name="theme-color" content="#31bdf6" />
 <% if (typeof metaRobots !== 'undefined' && metaRobots) { %>
 <meta name="robots" content="<%- metaRobots %>" />
 <% } %>
@@ -54,7 +54,19 @@
   ]
 </script>
 
+<script>
+  try {
+    const savedTheme = localStorage.getItem('pictocard-theme');
+    document.documentElement.dataset.theme = savedTheme === 'light' || savedTheme === 'dark'
+      ? savedTheme : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+</script>
+<link rel="preload" href="/css/RodinNTLGPro-DB-Extended.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/css/RodinNTLGPro-B-Extended.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="/css/main.css" />
+<script src="/js/site.js" defer></script>
 <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />

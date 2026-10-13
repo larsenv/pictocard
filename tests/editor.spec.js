@@ -45,7 +45,12 @@ test('live preview updates for image, text, font, and color without submitting',
   await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
   const preview = page.locator('#liveCardImage');
   const initial = await preview.getAttribute('src');
-  await page.setInputFiles('#cardImage', image);
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('#choosePicture').click();
+  await (await chooser).setFiles(image);
+  await expect(page.locator('#pictureThumbnail')).toBeVisible();
+  await expect(page.locator('#pictureFileName')).toHaveText('logo.png');
+  await expect(page.locator('#choosePicture')).toHaveText('Change picture');
   await page.fill('#cardText', 'A live message');
   await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
   await expect(preview).not.toHaveAttribute('src', initial);
@@ -70,18 +75,19 @@ test('desktop preview sits to the right and mobile preview opens without losing 
   expect(desktopLogo.x).toBe(form.x);
   await page.fill('#cardText', 'Keep this message');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#livePreview')).toBeHidden();
+  await expect(page.locator('.live-preview-content')).toBeHidden();
   await page.locator('#openPreview').click();
   await expect(page.locator('#livePreview')).toBeVisible();
   await expect(page.locator('#openPreview')).toHaveAttribute('aria-expanded', 'true');
   await page.locator('#closePreview').click();
-  await expect(page.locator('#livePreview')).toBeHidden();
+  await expect(page.locator('.live-preview-content')).toBeHidden();
   await expect(page.locator('#cardText')).toHaveValue('Keep this message');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 320, height: 720 });
   const logo = await page.locator('.brand').boundingBox();
+  await page.locator('#menuToggle').click();
   const navigation = await page.locator('.header-nav').boundingBox();
-  expect(navigation.x).toBeGreaterThanOrEqual(logo.x + logo.width);
+  expect(navigation.y).toBeGreaterThanOrEqual(logo.y + logo.height);
   expect(navigation.x + navigation.width).toBeLessThanOrEqual(320);
 });
 
@@ -111,7 +117,7 @@ test('Wii guidance stays inside its tab and supports a live letter preview', asy
   await expect(page.locator('main')).not.toContainText('@rc24.xyz');
   await expect(page.locator('main')).not.toContainText('mail@pictocard.net');
   await page.locator('#tabDiscord').click();
-  await expect(page.locator('#recipientDiscord')).toHaveAttribute('placeholder', '@username');
+  await expect(page.locator('#recipientDiscord')).toHaveAttribute('placeholder', 'username');
 });
 
 test('preview recovers an expired session token without clearing the draft', async ({ page }) => {
@@ -132,13 +138,13 @@ test('preview recovers an expired session token without clearing the draft', asy
 
 test('email preference controls have clear spacing and the selected action is preserved', async ({ page }) => {
   await page.goto('/optout');
-  await expect(page.locator('a[aria-current="page"]')).toHaveText('Opt Out');
+  await expect(page.locator('.delivery-tabs a[aria-current="page"]')).toHaveText('Opt Out');
   const input = await page.locator('#email').boundingBox();
   const button = await page.getByRole('button', { name: 'Send Verification Code' }).boundingBox();
   expect(button.y - input.y - input.height).toBeGreaterThanOrEqual(16);
   await page.getByRole('link', { name: 'Opt Back In', exact: true }).click();
   await expect(page.locator('input[name="action"]')).toHaveValue('optin');
-  await expect(page.locator('a[aria-current="page"]')).toHaveText('Opt Back In');
+  await expect(page.locator('.delivery-tabs a[aria-current="page"]')).toHaveText('Opt Back In');
   await expect(page.locator('.site-footer')).toHaveText('© PictoCard');
   await expect(page.locator('.site-footer a')).toHaveCount(0);
 });
@@ -152,6 +158,7 @@ test('extra Mii sources affect only the PictoCard and failed replacements keep t
   await page.route('**/card-preview', (route) => route.fulfill({ contentType: 'application/json',
     body: JSON.stringify({ image: thumbnail, wii: false }) }));
   await page.goto('/');
+  await page.locator('#extrasGroup > summary').click();
   await page.selectOption('#miiSource', 'nnid');
   await expect(page.locator('#miiLookupField')).toBeVisible();
   await expect(page.locator('#miiFileField')).toBeHidden();
