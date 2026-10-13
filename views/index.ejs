@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <%- include('partials/head', { 
-      metaDescription: 'Create and send customizable greeting cards by email, on Discord or to a Wii Message Board. Upload any photo, write your message, pick your font and color. A free and simple iCards alternative.', 
-      ogTitle: 'PictoCard - Send a Greeting Card', 
-      ogDescription: 'Create and send customizable greeting cards by email or on Discord', 
-      ogUrl: domain + '/', 
+    <%- include('partials/head', {
+      metaDescription: 'Create and send customizable greeting cards by email, on Discord or to a Wii Message Board. Upload any photo, write your message, pick your font and color. A free and simple iCards alternative.',
+      ogTitle: 'PictoCard - Send a Greeting Card',
+      ogDescription: 'Create and send customizable greeting cards by email or on Discord',
+      ogUrl: domain + '/',
       canonicalUrl: domain + '/',
       faq: faq
     }) %>
@@ -13,7 +13,7 @@
   <body>
     <%- include('partials/header') %>
 
-    <main class="container">
+    <main class="container composer">
       <% if (success) { %>
       <div class="alert alert-success">🎉 Your card was sent successfully!</div>
       <% } %> <% if (error) { %>
@@ -21,22 +21,11 @@
       <% } %>
 
       <section class="hero">
-        <h1>Send a PictoCard</h1>
-        <p class="hero-sub">
-          Create a personalized digital greeting card and deliver it by email or on Discord.
-        </p>
-        <h2 class="hero-keywords">
-          The simple way to send custom photo cards and personalized e-cards.
-        </h2>
-        <p class="hero-desc">
-          PictoCard is a free service for sending digital greeting cards with your own custom image
-          and text. Whether you're sending a thank you, a birthday wish, or just a quick note,
-          upload any photo, write your message, and share it instantly. Inspired by the classic
-          simplicity of Apple's iCards, we focus on what matters: your message, beautiful fonts, and
-          zero bloat.
-        </p>
+        <h1>Send a PictoCard!</h1>
+        <p class="hero-sub">Create a personalized greeting card and send it by email or on Discord. Or send a special note to a Wii Message Board with WiiLink!</p>
       </section>
 
+      <div class="editor-layout">
       <form
         action="/create"
         method="POST"
@@ -45,220 +34,254 @@
         id="cardForm"
       >
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-        <% var discordTab = !!(pending && pending.verifyViaDiscord); var wiiTab = !!(pending && pending.wiiTab); var wiiAttachSel = (pending && pending.wii && pending.wii.attach) || 'none'; var letterheadSel = (pending && pending.wii && pending.wii.letterhead) || ''; %>
+        <% var discordTab = !!(pending && pending.verifyViaDiscord); var wiiTab = !!(pending && pending.wiiTab); %>
 
         <!-- ── Recipient (tab switcher) ── -->
-        <fieldset class="form-group">
-          <legend>Who is this for?</legend>
-
-          <div class="delivery-tabs">
-            <button
-              type="button"
-              class="tab-btn <%= (discordTab || wiiTab) ? '' : 'tab-active' %>"
-              id="tabEmail"
-              onclick="switchTab('email')"
-            >
-              ✉️ Send by Email
-            </button>
-            <button
-              type="button"
-              class="tab-btn <%= discordTab ? 'tab-active' : '' %>"
-              id="tabDiscord"
-              data-discord-auth="<%= (discordOAuthEnabled && !discordUser) ? '0' : '1' %>"
-            >
-              💬 Send via Discord<% if (discordOAuthEnabled && !discordUser) { %> 🔒<% } %>
-            </button>
-            <button
-              type="button"
-              class="tab-btn <%= wiiTab ? 'tab-active' : '' %>"
-              id="tabWii"
-              onclick="switchTab('wii')"
-            >
-              📡 Send to a Wii
-            </button>
-          </div>
-
-          <div
-            id="panelEmail"
-            class="tab-panel"
-            style="<%= (discordTab || wiiTab) ? 'display:none' : '' %>"
-          >
-            <div class="field">
-              <label for="recipientEmail">Recipient Email Address</label>
-              <input
-                type="email"
-                id="recipientEmail"
-                name="recipientEmail"
-                placeholder="friend@example.com"
-                autocomplete="off"
-                value="<%= (pending && pending.recipientEmail) || '' %>"
-              />
-            </div>
-          </div>
-
-          <div
-            id="panelDiscord"
-            class="tab-panel"
-            style="<%= (pending && pending.verifyViaDiscord) ? '' : 'display:none' %>"
-          >
-            <% if (discordOAuthEnabled) { %> <% if (discordUser) { %>
-            <div class="discord-connected">
-              <span class="discord-connected-label"
-                >✅ Connected as <strong><%= discordUser.displayName %></strong></span
-              >
-              <a href="/discord/logout" class="btn btn-sm btn-secondary">Disconnect</a>
-            </div>
-            <% } else { %>
-            <div class="discord-login-prompt">
-              <a href="/discord" class="btn btn-discord">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 127.14 96.36"
-                  style="vertical-align: middle; margin-right: 6px; fill: currentColor"
-                >
-                  <path
-                    d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.44 12.69z"
-                  />
-                </svg>
-                Log in with Discord to continue
-              </a>
-              <span class="field-hint">Discord login is required to send via Discord DM.</span>
-            </div>
-            <% } %> <% } %>
-            <div class="field">
-              <label for="recipientDiscord">Discord Username</label>
-              <div class="input-prefix">
-                <span aria-hidden="true">@</span>
-                <input
-                  type="text"
-                  id="recipientDiscord"
-                  name="recipientDiscord"
-                  placeholder="discordusername"
-                  autocomplete="off"
-                  value="<%= (pending && pending.recipientDiscord) || '' %>"
-                />
-              </div>
-              <span class="field-hint"
-                >Enter the recipient's Discord username (no @). The PictoCard bot must share a
-                server with them.
-                <a
-                  href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot"
-                  target="_blank"
-                  rel="noopener"
-                  >Invite the bot</a
-                ></span
-              >
-            </div>
-          </div>
-
-          <div
-            id="panelWii"
-            class="tab-panel"
-            style="<%= wiiTab ? '' : 'display:none' %>"
-          >
-            <% if (!wiiEnabled) { %>
-            <p class="field-hint">Wii delivery isn't set up yet. Please check back soon.</p>
-            <% } else { %>
-            <div class="field">
-              <label for="recipientWii">Recipient Wii Number</label>
-              <input
-                type="text"
-                id="recipientWii"
-                name="recipientWii"
-                inputmode="numeric"
-                maxlength="19"
-                placeholder="1234 5678 9012 3456"
-                autocomplete="off"
-                value="<%= (pending && pending.recipientWii) || '' %>"
-              />
-              <span class="field-hint"
-                >The recipient's Wii has to be friends with PictoCard first (it's quick and only
-                needed once).</span
-              >
+        <section class="form-group" aria-labelledby="recipientHeading">
+          <h2 class="panel-title" id="recipientHeading">
+            <span class="panel-title-label"><%- include('partials/step', { number: '01' }) %>Who is it for?</span>
+          </h2>
+          <div class="group-content">
+            <div class="delivery-tabs">
               <button
-                type="submit"
-                class="btn btn-secondary btn-sm"
-                formaction="/wii"
-                formenctype="application/x-www-form-urlencoded"
-                formnovalidate
+                type="button"
+                class="tab-btn <%= (discordTab || wiiTab) ? '' : 'tab-active' %>"
+                id="tabEmail"
+                onclick="switchTab('email')"
               >
-                Send Friend Request
+                Email
+              </button>
+              <button
+                type="button"
+                class="tab-btn <%= discordTab ? 'tab-active' : '' %>"
+                id="tabDiscord"
+                data-discord-auth="<%= (discordOAuthEnabled && !discordUser) ? '0' : '1' %>"
+              >
+                Discord<% if (discordOAuthEnabled && !discordUser) { %> 🔒<% } %>
+              </button>
+              <button
+                type="button"
+                class="tab-btn <%= wiiTab ? 'tab-active' : '' %>"
+                id="tabWii"
+                onclick="switchTab('wii')"
+              >
+                Wii
               </button>
             </div>
 
-            <div class="field">
-              <label for="wiiMii">Wii Face (Optional)</label>
-              <input type="file" id="wiiMii" name="wiiMii" />
-              <span class="field-hint"
-                >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter.</span
-              >
+            <div
+              id="panelEmail"
+              class="tab-panel"
+              style="<%= (discordTab || wiiTab) ? 'display:none' : '' %>"
+            >
+              <div class="field">
+                <label for="recipientEmail">Recipient Email Address</label>
+                <input
+                  type="email"
+                  id="recipientEmail"
+                  name="recipientEmail"
+                  placeholder="friend@example.com"
+                  autocomplete="off"
+                  value="<%= (pending && pending.recipientEmail) || '' %>"
+                />
+              </div>
             </div>
 
-            <div class="field">
-              <label>Attachment (Optional)</label>
-              <div class="radio-row">
-                <label><input type="radio" name="wiiAttach" value="none" <%= wiiAttachSel === 'none' ? 'checked' : '' %> /> None</label>
-                <label><input type="radio" name="wiiAttach" value="image" <%= wiiAttachSel === 'image' ? 'checked' : '' %> /> Picture</label>
-                <label><input type="radio" name="wiiAttach" value="card" <%= wiiAttachSel === 'card' ? 'checked' : '' %> /> PictoCard</label>
+            <div
+              id="panelDiscord"
+              class="tab-panel"
+              style="<%= (pending && pending.verifyViaDiscord) ? '' : 'display:none' %>"
+            >
+              <% if (discordOAuthEnabled) { %> <% if (discordUser) { %>
+              <div class="discord-connected">
+                <span class="discord-connected-label"
+                  >✅ Connected as <strong><%= discordUser.displayName %></strong></span
+                >
+                <a href="/discord/logout" class="btn btn-sm btn-secondary">Disconnect</a>
               </div>
-              <div id="wiiImageField" style="display: none">
+              <% } else { %>
+              <div class="discord-login-prompt">
+                <a href="/discord" class="btn btn-discord">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 127.14 96.36"
+                    style="vertical-align: middle; margin-right: 6px; fill: currentColor"
+                  >
+                    <path
+                      d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.44 12.69z"
+                    />
+                  </svg>
+                  Log in with Discord to continue
+                </a>
+                <span class="field-hint">Discord login is required to send via Discord DM.</span>
+              </div>
+              <% } %> <% } %>
+              <div class="field">
+                <label for="recipientDiscord">Discord Username</label>
+                <div class="username-field"><span class="username-prefix" aria-hidden="true">@</span><input
+                  type="text"
+                  id="recipientDiscord"
+                  name="recipientDiscord"
+                  placeholder="username" autocapitalize="none" spellcheck="false"
+                  autocomplete="off"
+                  value="<%= ((pending && pending.recipientDiscord) || '').replace(/^@+/, '') %>"
+                /></div>
+                <span class="field-hint"
+                  >Enter the recipient's Discord username. The PictoCard bot must share a
+                  server with them.
+                  <a
+                    href="http://discord.com/oauth2/authorize?client_id=1480701823382720582&amp;permissions=3072&amp;scope=bot"
+                    target="_blank"
+                    rel="noopener"
+                    >Invite the bot</a
+                  ></span
+                >
+              </div>
+            </div>
+
+            <div
+              id="panelWii"
+              class="tab-panel"
+              style="<%= wiiTab ? '' : 'display:none' %>"
+            >
+              <% if (!wiiEnabled) { %>
+              <p class="field-hint">Wii delivery isn't set up yet. Please check back soon.</p>
+              <% } %>
+              <div class="field">
+                <label for="recipientWii">Recipient Wii Number</label>
                 <input
-                  type="file"
-                  id="wiiImage"
-                  name="wiiImage"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  type="text"
+                  id="recipientWii"
+                  name="recipientWii"
+                  inputmode="numeric"
+                  maxlength="19"
+                  placeholder="1234 5678 9012 3456"
+                  autocomplete="off"
+                  value="<%= (pending && pending.recipientWii) || '' %>"
                 />
                 <span class="field-hint"
-                  >JPEG, PNG, GIF or WebP - converted to a baseline JPEG so the Wii can display
-                  it.</span
+                  >The recipient's Wii needs WiiLink and PictoCard in its address book.
+                  <a href="/wii">Add PictoCard to a Wii</a> (only needed once).</span
                 >
-              </div>
-              <div id="wiiCardTextField" style="display: none">
-                <label for="wiiCardText">Text on the PictoCard (Optional)</label>
-                <textarea
-                  id="wiiCardText"
-                  name="wiiCardText"
-                  rows="3"
-                  maxlength="500"
-                  placeholder="Leave empty to use your message"
-                ></textarea>
-                <span class="field-hint"
-                  >The card uses the Card Image and font below. Your message above is still the
-                  text of the letter.</span
+                <button
+                  type="submit"
+                  class="btn btn-secondary btn-sm"
+                  formaction="/wii"
+                  formenctype="application/x-www-form-urlencoded"
+                  formnovalidate
+                  data-wii-enabled="<%= wiiEnabled ? '1' : '0' %>"
+                  <%= wiiEnabled ? '' : 'disabled' %>
                 >
+                  Send Friend Request
+                </button>
               </div>
-            </div>
 
-            <% if (letterheadGroups && letterheadGroups.length > 0) { %>
-            <div class="field">
-              <label>Letterhead</label>
-              <details class="letterhead-details"<%= letterheadSel ? ' open' : '' %>>
-                <summary>Choose a Letterhead</summary>
-                <h4 class="letterhead-group">Default</h4>
-                <div class="letterhead-gallery">
-                  <label class="preset-option" title="Default (no letterhead)">
-                    <input type="radio" name="letterhead" value="" <%= letterheadSel === '' ? 'checked' : '' %> />
-                    <img src="/images/letterheads/default.png" alt="Default letterhead" loading="lazy" />
-                  </label>
+              <div class="field">
+                <label for="wiiMii">Mii Face (Optional)</label>
+                <span class="field-hint">Face previews send Mii appearance data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>.</span>
+                <input type="file" id="wiiMii" name="wiiMii" />
+                <span class="field-hint"
+                  >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter. <%= pending && pending.wiiMiiData ? 'Leave empty to keep your current face.' : '' %></span
+                >
+              </div>
+
+              <div class="field">
+                <label>Attachment (Optional)</label>
+                <div class="radio-row">
+                  <label><input type="radio" name="wiiAttach" value="none" <%= (!pending || !pending.wiiAttach || pending.wiiAttach === 'none') ? 'checked' : '' %> /> None</label>
+                  <label><input type="radio" name="wiiAttach" value="image" <%= pending && pending.wiiAttach === 'image' ? 'checked' : '' %> /> Picture</label>
+                  <label><input type="radio" name="wiiAttach" value="card" <%= pending && pending.wiiAttach === 'card' ? 'checked' : '' %> /> PictoCard</label>
                 </div>
-                <% letterheadGroups.forEach(function(g) { %>
-                <h4 class="letterhead-group"><%= g.group %></h4>
-                <div class="letterhead-gallery">
-                  <% g.items.forEach(function(l) { %>
-                  <label class="preset-option" title="<%= l.name %>">
-                    <input type="radio" name="letterhead" value="<%= l.id %>" <%= letterheadSel === l.id ? 'checked' : '' %> />
-                    <img src="<%= l.preview %>" alt="<%= l.name %>" loading="lazy" />
-                  </label>
+                <div id="wiiImageField" style="display: none">
+                  <input
+                    type="file"
+                    id="wiiImage"
+                    name="wiiImage"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                  />
+                  <span class="field-hint"
+                    >JPEG, PNG, GIF or WebP, up to 10 MB. <%= pending && pending.wiiImage ? 'Leave empty to keep your current picture.' : '' %></span
+                  >
+                </div>
+                <div id="wiiCardTextField" style="display: none">
+                  <label for="wiiCardText">Text on the PictoCard (Optional)</label>
+                  <textarea
+                    id="wiiCardText"
+                    name="wiiCardText"
+                    rows="3"
+                    maxlength="500"
+                    placeholder="Leave empty to use your message"
+                  ><%= pending && pending.wiiCardText || '' %></textarea>
+                  <span class="field-hint"
+                    >The card uses the Card Image and font below. Your message above is still the
+                    text of the letter.</span
+                  >
+                </div>
+              </div>
+
+              <% if (letterheadGroups && letterheadGroups.length > 0) { %>
+              <div class="field">
+                <label>Letterhead</label>
+                <details class="letterhead-details">
+                  <summary>Choose a Letterhead</summary>
+                  <h4 class="letterhead-group">Default</h4>
+                  <div class="letterhead-gallery">
+                    <label class="preset-option" title="Default (no letterhead)">
+                      <input type="radio" name="letterhead" value="" <%= (!pending || !pending.letterhead) ? 'checked' : '' %> />
+                      <img src="/images/letterheads/default.png" alt="Default letterhead" loading="lazy" />
+                    </label>
+                  </div>
+                  <% letterheadGroups.forEach(function(g) { %>
+                  <h4 class="letterhead-group"><%= g.group %></h4>
+                  <div class="letterhead-gallery">
+                    <% g.items.forEach(function(l) { %>
+                    <label class="preset-option" title="<%= l.name %>">
+                      <input type="radio" name="letterhead" value="<%= l.id %>" <%= pending && pending.letterhead === l.id ? 'checked' : '' %> />
+                      <img src="<%= l.preview %>" alt="<%= l.name %>" loading="lazy" />
+                    </label>
+                    <% }); %>
+                  </div>
                   <% }); %>
-                </div>
-                <% }); %>
-              </details>
+                </details>
+              </div>
+              <% } %>
             </div>
-            <% } %> <% } %>
+            <div
+              class="sender-fields"
+              id="senderFields"
+              style="<%= (pending && pending.verifyViaDiscord) ? 'display:none' : '' %>"
+            >
+              <div class="field" id="senderNameField">
+                <label for="senderName">Your Name</label>
+                <input
+                  type="text"
+                  id="senderName"
+                  name="senderName"
+                  required
+                  placeholder="Your name"
+                  maxlength="80"
+                  value="<%= (pending && pending.senderName) || '' %>"
+                />
+                <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
+              </div>
+
+              <div class="field" id="senderEmailField">
+                <label for="senderEmail" id="senderEmailLabel">Your Email</label>
+                <input
+                  type="email"
+                  id="senderEmail"
+                  name="senderEmail"
+                  required
+                  placeholder="you@example.com"
+                  autocomplete="off"
+                  value="<%= (pending && pending.senderEmail) || '' %>"
+                />
+              </div>
+            </div>
           </div>
-        </fieldset>
+        </section>
 
         <input
           type="hidden"
@@ -267,148 +290,158 @@
           value="<%= discordTab ? 'discord' : (wiiTab ? 'wii' : 'email') %>"
         />
 
-        <!-- ── Sender ── -->
-        <fieldset
-          class="form-group"
-          id="senderFields"
-          style="<%= (pending && pending.verifyViaDiscord) ? 'display:none' : '' %>"
-        >
-          <legend>About you</legend>
-
-          <div class="field" id="senderNameField">
-            <label for="senderName">Your Name</label>
-            <input
-              type="text"
-              id="senderName"
-              name="senderName"
-              required
-              placeholder="Your name"
-              maxlength="80"
-              value="<%= (pending && pending.senderName) || '' %>"
-            />
-            <span class="field-hint" id="senderNameHint">Shown on the card and in the email.</span>
-          </div>
-
-          <div class="field" id="senderEmailField">
-            <label for="senderEmail" id="senderEmailLabel">Your Email</label>
-            <input
-              type="email"
-              id="senderEmail"
-              name="senderEmail"
-              required
-              placeholder="you@example.com"
-              autocomplete="off"
-              value="<%= (pending && pending.senderEmail) || '' %>"
-            />
-          </div>
-        </fieldset>
-
         <!-- ── Image ── -->
-        <fieldset class="form-group" id="cardImageGroup">
-          <legend>Card Image</legend>
-
-          <div class="field">
-            <label for="cardImage">Upload an Image</label>
-            <input
-              type="file"
-              id="cardImage"
-              name="cardImage"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-            />
-            <span class="field-hint"
-              >JPEG, PNG, GIF or WebP - max 10 MB. <%= (pending && pending.generatedCard) ? 'Leave empty to keep current image.' : '' %></span
-            >
-          </div>
-
-          <% if (presets && presets.length > 0) { %>
-          <div class="field">
-            <label>Or choose a preset</label>
-            <div class="preset-gallery">
-              <% presets.forEach(function(src) { %>
-              <label class="preset-option">
-                <input type="radio" name="presetImage" value="<%= src %>" <%= (pending && pending.presetImage === src) ? 'checked' : '' %> />
-                <img src="<%= src %>" alt="PictoCard Preset Card Background" loading="lazy" />
-              </label>
-              <% }); %>
+        <section class="form-group" id="cardImageGroup" aria-labelledby="pictureHeading">
+          <h2 class="panel-title" id="pictureHeading">
+            <span class="panel-title-label"><%- include('partials/step', { number: '02' }) %>Your picture</span>
+          </h2>
+          <div class="group-content">
+            <div class="picture-upload">
+              <img id="pictureThumbnail" alt="Selected picture" hidden />
+              <div class="picture-upload-controls">
+                <label for="cardImage" class="sr-only">Upload an Image</label>
+                <input type="file" id="cardImage" name="cardImage"
+                  accept="image/jpeg,image/png,image/gif,image/webp" hidden />
+                <strong id="pictureFileName"><%= pending && pending.originalImage ? 'Current picture' : 'Choose a picture' %></strong>
+                <p class="field-hint">JPEG, PNG, GIF or WebP - max 10 MB.</p>
+                <button type="button" class="btn btn-secondary" id="choosePicture"><%= pending && pending.originalImage ? 'Change picture' : 'Upload picture' %></button>
+              </div>
             </div>
+
+            <% if (presets && presets.length > 0) { %>
+            <div class="field">
+              <details class="preset-details">
+                <summary>Or choose a preset</summary>
+                <div class="preset-gallery">
+                  <% presets.forEach(function(src) { %>
+                  <label class="preset-option">
+                    <input type="radio" name="presetImage" value="<%= src %>" />
+                    <img src="<%= src %>" alt="PictoCard Preset Card Background" loading="lazy" />
+                  </label>
+                  <% }); %>
+                </div>
+              </details>
+            </div>
+            <% } %>
           </div>
-          <% } %>
-        </fieldset>
+        </section>
 
         <!-- ── Message ── -->
-        <fieldset class="form-group">
-          <legend>Your Message</legend>
+        <section class="form-group" aria-labelledby="messageHeading">
+          <h2 class="panel-title" id="messageHeading">
+            <span class="panel-title-label"><%- include('partials/step', { number: '03' }) %>Your message</span>
+          </h2>
+          <div class="group-content">
+            <div class="field">
+              <label for="cardText"
+                >Message <span class="char-counter" id="charCounter">0 / 500</span></label
+              >
+              <textarea
+                id="cardText"
+                name="cardText"
+                rows="5"
+                maxlength="500"
+                placeholder="Write your message here..."
+              ><%= (pending && pending.cardText) || '' %></textarea>
+              <span class="field-hint" id="messageFitHint">Up to 500 characters. Card text sizes to fit; the preview shows the result.</span>
+            </div>
 
-          <div class="field">
-            <label for="cardText"
-              >Message <span class="char-counter" id="charCounter">0 / 500</span></label
-            >
-            <textarea
-              id="cardText"
-              name="cardText"
-              rows="5"
-              maxlength="500"
-              placeholder="Write your message here..."
-            ><%= (pending && pending.cardText) || '' %></textarea>
-          </div>
+            <div class="field-row" id="fontRow">
+              <div class="field field-grow">
+                <label for="fontFamily">Font</label>
+                <select id="fontFamily" name="fontFamily">
+                  <% fonts.forEach(function(f) { %>
+                    <% if (((pending && pending.fontFamily) || 'rodinntlg') === f.family) { %>
+                      <option value="<%= f.family %>" data-file="<%= f.file %>" selected><%= f.name %></option>
+                    <% } else { %>
+                      <option value="<%= f.family %>" data-file="<%= f.file %>"><%= f.name %></option>
+                    <% } %>
+                  <% }); %>
+                </select>
+              </div>
 
-          <div class="field-row" id="fontRow">
-            <div class="field field-grow">
-              <label for="fontFamily">Font</label>
-              <select id="fontFamily" name="fontFamily">
-                <% fonts.forEach(function(f) { %>
-                  <% if (pending && pending.fontFamily === f.family) { %>
-                    <option value="<%= f.family %>" data-file="<%= f.file %>" selected><%= f.name %></option>
-                  <% } else { %>
-                    <option value="<%= f.family %>" data-file="<%= f.file %>"><%= f.name %></option>
-                  <% } %>
-                <% }); %>
-              </select>
-              <div id="fontPreview" class="font-preview" aria-hidden="true">
-                <img id="fontPreviewImg" src="" alt="" style="display: none" />
+              <div class="field field-shrink">
+                <label for="textColor">Text Color</label>
+                <div class="color-picker-wrap">
+                  <input type="color" id="textColor" name="textColor" value="<%= (pending && pending.textColor) || '#111111' %>" />
+                  <span class="color-label" id="colorLabel"><%= (pending && pending.textColor) || '#111111' %></span>
+                </div>
               </div>
             </div>
 
-            <div class="field field-shrink">
-              <label for="textColor">Text Color</label>
-              <div class="color-picker-wrap">
-                <input type="color" id="textColor" name="textColor" value="<%= (pending && pending.textColor) || '#111111' %>" />
-                <span class="color-label" id="colorLabel"><%= (pending && pending.textColor) || '#111111' %></span>
+            <div class="background-field" id="cardBackgroundGroup">
+              <span class="field-label">Text background</span>
+              <div class="radio-row">
+                <label><input type="radio" name="cardBackground" value="light"
+                  <%= !pending || pending.cardBackground !== 'dark' ? 'checked' : '' %> /> Light</label>
+                <label><input type="radio" name="cardBackground" value="dark"
+                  <%= pending && pending.cardBackground === 'dark' ? 'checked' : '' %> /> Dark</label>
               </div>
             </div>
-          </div>
-        </fieldset>
 
-        <!-- ── Optional extras ── -->
-        <fieldset class="form-group extras" id="extrasGroup">
-          <legend>Optional Extras</legend>
+            <details class="mii-details" id="extrasGroup" <%= pending && pending.miiData ? 'open' : '' %>>
+              <summary><span>Add a Mii</span><span class="field-hint">.mii / .ffsd / .charinfo / .mnms</span></summary>
 
-          <div class="field">
-            <label for="miiFile">Mii on the PictoCard</label>
-            <input type="file" id="miiFile" name="miiFile" />
+              <div class="field">
+                <label for="miiSource">Mii on the PictoCard</label>
+                <span class="field-hint">Loading or previewing a Mii sends its data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>. ID lookups also send the entered NNID or PNID.</span>
+                <select id="miiSource">
+                  <option value="file">Mii file</option>
+                  <option value="nnid">Nintendo Network ID</option>
+                  <option value="pnid">Pretendo Network ID</option>
+                  <option value="data">Mii data or Studio URL</option>
+                  <option value="qr">QR code image</option>
+                  <option value="amiibo">amiibo dump</option>
+                </select>
+                <div id="miiFileField">
+                  <label for="miiFile" class="sr-only">Choose a Mii file</label>
+                  <input type="file" id="miiFile" name="miiFile" />
+                </div>
+                <div id="miiLookupField" hidden>
+                  <label for="miiLookup" id="miiLookupLabel">Nintendo Network ID</label>
+                  <input type="text" id="miiLookup" maxlength="16" autocomplete="off" placeholder="Enter an ID" />
+                </div>
+                <div id="miiCodeField" hidden>
+                  <label for="miiCode">Mii data or Studio image URL</label>
+                  <textarea id="miiCode" rows="3" maxlength="4096" placeholder="Paste hex, Base64, or an image URL containing Mii data"></textarea>
+                </div>
+                <input type="hidden" id="cardMiiData" name="cardMiiData" value="<%= pending && pending.miiData || '' %>" />
+                <div class="mii-actions">
+                  <button type="button" class="btn btn-secondary" id="loadCardMii">Load Mii</button>
+                  <button type="button" class="btn btn-secondary" id="removeCardMii" <%= pending && pending.miiData ? '' : 'hidden' %>>Remove Mii</button>
+                </div>
+                <div class="mii-result">
+                  <img id="cardMiiThumbnail" alt="Selected Mii" hidden />
+                  <span id="cardMiiStatus" class="field-hint" role="status"><%= pending && pending.miiData ? 'Current Mii kept. Load another to replace it.' : 'Optional. Choose a source to add your Mii.' %></span>
+                </div>
+                <span class="field-hint" id="miiSourceHint">Wii, 3DS, Wii U, Switch, or Mii Studio data. The Mii is drawn onto the PictoCard image.</span>
+              </div>
+            </details>
           </div>
-        </fieldset>
+        </section>
 
         <% if (turnstileSiteKey) { %>
-        <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="dark"></div>
+        <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-theme="auto"></div>
         <% } %>
 
-        <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
+        <button type="submit" class="btn btn-primary btn-lg">Review your card &rarr;</button>
+        <p class="form-foot">Nothing is sent until you confirm.</p>
       </form>
 
-      <!-- ── WiiLink notice ── -->
-      <aside class="wiilink-notice">
-        <h3>📡 Send to a Wii via WiiLink</h3>
-        <p>
-          You can send PictoCards directly to a Wii! Each Wii has a unique email address in the
-          format
-          <strong>w&lt;16-digit Wii Number&gt;@rc24.xyz</strong> (e.g.
-          <code>w1234567890123456@rc24.xyz</code>). Enter that address as the recipient above to
-          deliver your card straight to a Wii Message Board. The receipient must have
-          mail@pictocard.net registered in their address book in order to receive your card
-        </p>
-        <p><a href="/wii">Add PictoCard to your Wii's address book &rarr;</a></p>
+      <aside class="live-preview" id="livePreview" aria-label="Card preview">
+        <div class="preview-heading">
+          <h2 id="previewHeading">Live preview</h2>
+          <button type="button" class="mobile-preview-toggle" id="openPreview" aria-controls="livePreview" aria-expanded="false">Open</button>
+          <button type="button" class="btn btn-secondary preview-close" id="closePreview">Close</button>
+        </div>
+        <div class="live-preview-content">
+          <%- include('partials/wii-preview') %>
+          <img id="liveCardImage" alt="Live card preview" hidden />
+        </div>
+        <p id="previewStatus" class="hint-text" role="status">Loading your preview…</p>
+        <p class="field-hint" id="previewDescription">Changes appear here as you edit. Nothing is sent until you confirm.</p>
       </aside>
+      </div>
 
       <section class="faq" aria-labelledby="faq-title">
         <h2 id="faq-title">Frequently Asked Questions</h2>
@@ -427,27 +460,27 @@
     <% } %>
 
     <script>
+      const discordName = document.getElementById('recipientDiscord');
+      discordName.addEventListener('input', () => {
+        discordName.value = discordName.value.replace(/^@+/, '');
+      });
+
       // Character counter
       const ta = document.getElementById('cardText');
       const counter = document.getElementById('charCounter');
       if (ta && counter) {
+        counter.textContent = `${ta.value.length} / 500`;
         ta.addEventListener('input', () => {
           counter.textContent = `${ta.value.length} / 500`;
         });
       }
 
-      // Color picker label sync (also after back/forward restores the form)
+      // Color picker label sync
       const colorInput = document.getElementById('textColor');
       const colorLabel = document.getElementById('colorLabel');
       if (colorInput && colorLabel) {
-        const syncColor = () => {
+        colorInput.addEventListener('input', () => {
           colorLabel.textContent = colorInput.value;
-        };
-        colorInput.addEventListener('input', syncColor);
-        window.addEventListener('pageshow', () => {
-          syncColor();
-          if (ta && counter) counter.textContent = `${ta.value.length} / 500`;
-          applyWiiMode();
         });
       }
 
@@ -456,17 +489,27 @@
         const wii = document.getElementById('deliveryMethod').value === 'wii';
         const attach = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
         const showCard = !wii || attach === 'card';
+        const backgroundGroup = document.getElementById('cardBackgroundGroup');
+        backgroundGroup.style.display = showCard ? '' : 'none';
+        backgroundGroup.querySelectorAll('input').forEach((field) => { field.disabled = false; });
         const imageGroup = document.getElementById('cardImageGroup');
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
         if (fontRow) fontRow.style.display = showCard ? '' : 'none';
-        // The Mii File extra is the Mii drawn on a PictoCard (separate from the Wii Face)
+        // The Mii File extra is the Mii drawn on a PictoCard (separate from the Mii Face)
         const extras = document.getElementById('extrasGroup');
         if (extras) extras.style.display = showCard ? '' : 'none';
         const imgField = document.getElementById('wiiImageField');
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
         if (cardTextField) cardTextField.style.display = attach === 'card' ? '' : 'none';
+        for (const group of [imageGroup, extras]) {
+          if (group) group.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !showCard;
+          });
+        }
+        if (imgField) imgField.querySelector('input').disabled = !wii || attach !== 'image';
+        if (cardTextField) cardTextField.querySelector('textarea').disabled = !wii || attach !== 'card';
         const text = document.getElementById('cardText');
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');
@@ -500,6 +543,14 @@
         const deliveryMethod = document.getElementById('deliveryMethod');
 
         const senderFieldsGroup = document.getElementById('senderFields');
+
+        for (const [method, panel] of [['email', emailPanel], ['discord', discordPanel], ['wii', wiiPanel]]) {
+          if (panel) panel.querySelectorAll('input, select, textarea, button').forEach((field) => {
+            field.disabled = method !== tab || field.dataset.wiiEnabled === '0';
+          });
+        }
+        if (senderNameInput) senderNameInput.disabled = tab === 'discord';
+        if (senderEmailInput) senderEmailInput.disabled = tab !== 'email';
 
         if (wiiPanel) wiiPanel.style.display = tab === 'wii' ? '' : 'none';
         if (tabWii) tabWii.classList.toggle('tab-active', tab === 'wii');
@@ -536,7 +587,7 @@
         }
         applyWiiMode();
       }
-      applyWiiMode();
+      switchTab(document.getElementById('deliveryMethod').value);
 
       // Discord tab click - redirect to login if not authorized, otherwise switch tabs
       (function () {
@@ -551,49 +602,9 @@
         });
       })();
 
-      // Font live preview - loads a preview image named the same as the TTF file
-      (function () {
-        const fontSelect = document.getElementById('fontFamily');
-        const fontPreview = document.getElementById('fontPreview');
-        const previewImg = document.getElementById('fontPreviewImg');
-        if (!fontSelect || !previewImg) return;
-
-        // Build a lookup of safe family -> file pairs from server-rendered options
-        const knownFonts = {};
-        for (const opt of fontSelect.options) {
-          const fam = opt.value;
-          const file = opt.dataset.file || '';
-          // Only allow safe characters: alphanumeric, space, dash, dot, underscore
-          if (/^[\w\- .]+$/.test(fam) && /^[\w\-.]+\.ttf$/i.test(file)) {
-            knownFonts[fam] = file;
-          }
-        }
-
-        function applyFontPreview() {
-          const family = fontSelect.value;
-          const file = knownFonts[family];
-          if (!family || !file) {
-            previewImg.style.display = 'none';
-            return;
-          }
-          // Derive image path: same basename as TTF, with .png extension
-          const imgFile = file.replace(/\.ttf$/i, '.png');
-          previewImg.src = `/fonts/${imgFile}`;
-          previewImg.alt = family;
-          previewImg.style.display = 'block';
-        }
-
-        // Hide the preview box if the image fails to load (file not yet added)
-        previewImg.addEventListener('error', () => {
-          previewImg.style.display = 'none';
-        });
-        previewImg.addEventListener('load', () => {
-          previewImg.style.display = 'block';
-        });
-
-        fontSelect.addEventListener('change', applyFontPreview);
-        applyFontPreview(); // set initial preview
-      })();
     </script>
+    <script src="/js/wii-preview.js" defer></script>
+    <script src="/js/mii-input.js" defer></script>
+    <script src="/js/editor.js" defer></script>
   </body>
 </html>

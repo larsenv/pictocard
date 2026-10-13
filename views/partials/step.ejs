@@ -1,0 +1,17 @@
+<%
+  // Pictochat by Kirby3 (CC BY-SA 3.0); see public/fonts/pictochat/license.txt.
+  const digits = {
+    '01': 'M64 0V512H0V576H128V0Z',
+    '02': 'M0 0V256H64V64H320V0ZM64 256V320H256V256ZM256 320V512H320V320ZM0 512V576H256V512Z',
+    '03': 'M0 0V64H256V0ZM256 64V256H320V64ZM64 256V320H256V256ZM256 320V512H320V320ZM0 512V576H256V512Z'
+  };
+  const offset = number === '01' ? 8 : 6.125;
+%>
+<span class="step-number" aria-label="Step <%= number %>">
+  <svg viewBox="0 0 26 25" aria-hidden="true">
+    <g transform="translate(<%= offset %> 18.125) scale(0.01953125 -0.01953125)">
+      <path d="M64 0V64H256V0ZM128 256V320H192V256ZM0 64V512H64V256H128V128H64V64ZM256 64V320H192V448H256V512H320V64ZM64 512V576H256V512Z" />
+      <path transform="translate(384 0)" d="<%= digits[number] %>" />
+    </g>
+  </svg>
+</span>
