@@ -18,6 +18,7 @@
   let timer;
   let revision = 0;
   let running = false;
+  let busyRetries = 0;
   const fieldValues = new WeakMap();
   const valueOf = (field) => field.type === 'file' ? field.files[0] : `${field.value}:${field.checked || false}`;
   for (const field of form.elements) {
@@ -97,6 +98,15 @@
         ? await response.json() : { error: 'Could not refresh the preview. Reload this page and try again.' };
       if (current !== revision) return;
       if (!response.ok) {
+        if (response.status === 429) {
+          status.textContent = result.error || 'Preview is busy. Please try again shortly.';
+          status.classList.add('preview-error');
+          if (busyRetries++ < 4) {
+            const delay = Number(response.headers.get('Retry-After')) || 2;
+            timer = setTimeout(updatePreview, Math.min(60_000, Math.max(500, delay * 1000)));
+          }
+          return;
+        }
         image.hidden = true;
         letter.hidden = true;
         status.textContent = result.error || 'Could not update the preview. Please try again.';
@@ -108,6 +118,7 @@
         }
         return;
       }
+      busyRetries = 0;
       message.setCustomValidity('');
       cardMessage.setCustomValidity('');
       image.hidden = result.wii || !result.image;
@@ -140,6 +151,7 @@
   }
 
   function schedulePreview() {
+    busyRetries = 0;
     revision++;
     clearTimeout(timer);
     status.textContent = 'Updating preview…';
@@ -154,6 +166,11 @@
     const value = valueOf(field);
     if (fieldValues.get(field) === value) return;
     fieldValues.set(field, value);
+    if (field.type === 'radio') {
+      for (const radio of form.elements) {
+        if (radio.type === 'radio' && radio.name === field.name) fieldValues.set(radio, valueOf(radio));
+      }
+    }
     if (field.name === 'presetImage' && field.checked) {
       pictureInput.value = '';
       fieldValues.set(pictureInput, valueOf(pictureInput));

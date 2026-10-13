@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
+import sharp from 'sharp';
 
 const image = path.resolve('public/images/logo.png');
 
@@ -18,6 +19,11 @@ test('text backgrounds apply to cards and Wii attachments without changing custo
   await page.setInputFiles('#cardImage', image);
   await page.fill('#cardText', 'A letter\nwith\nseveral\nlines\nand a last line');
   await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+  const source = await page.locator('#wiiExpandedImage').getAttribute('src');
+  const bytes = Buffer.from(source.split(',')[1], 'base64');
+  const { width, height } = await sharp(bytes).metadata();
+  const pixel = await sharp(bytes).extract({ left: width - 15, top: Math.floor(height / 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+  expect([...pixel].every((channel) => channel < 70)).toBe(true);
   await expect(page.locator('#wiiPage')).toHaveText('1 / 2');
   await page.locator('#wiiNext').click();
   await expect(page.locator('#wiiPage')).toHaveText('2 / 2');
@@ -121,19 +127,35 @@ test('Wii guidance stays inside its tab and supports a live letter preview', asy
 });
 
 test('preview recovers an expired session token without clearing the draft', async ({ page }) => {
-  let expired = true;
-  await page.route('**/card-preview', (route) => {
-    if (expired) {
-      expired = false;
+  let originalToken;
+  let freshToken;
+  let recovered = false;
+  await page.route('**/form-token', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    freshToken = data.csrfToken + '-fresh';
+    await route.fulfill({ response, json: { csrfToken: freshToken } });
+  });
+  await page.route('**/card-preview', async (route) => {
+    const body = route.request().postDataBuffer();
+    const submitted = body.toString();
+    if (!originalToken) originalToken = /name="_csrf"\r\n\r\n([^\r]+)/.exec(submitted)[1];
+    if (!freshToken || !submitted.includes(freshToken)) {
       return route.fulfill({ status: 403, contentType: 'text/plain', body: 'Invalid CSRF token.' });
     }
-    return route.continue();
+    recovered = true;
+    const forwarded = Buffer.from(submitted.replace(freshToken, originalToken));
+    const response = await route.fetch({ postData: forwarded });
+    return route.fulfill({ response });
   });
   await page.goto('/');
   await page.fill('#cardText', 'Keep this draft');
   await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
   await expect(page.locator('#cardText')).toHaveValue('Keep this draft');
   await expect(page.locator('#liveCardImage')).toBeVisible();
+  expect(recovered).toBe(true);
+  expect(freshToken).not.toBe(originalToken);
+  await expect(page.locator('input[name="_csrf"]')).toHaveValue(freshToken);
 });
 
 test('email preference controls have clear spacing and the selected action is preserved', async ({ page }) => {
@@ -186,4 +208,33 @@ test('extra Mii sources affect only the PictoCard and failed replacements keep t
   await expect(page.locator('label[for="wiiMii"]')).toHaveText('Mii Face (Optional)');
   await page.locator('input[name="wiiAttach"][value="card"]').check();
   await expect(page.locator('#miiSource')).toBeVisible();
+});
+
+test('switching backgrounds repeatedly keeps default colors readable and refreshes the preview', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+  for (const background of ['dark', 'light', 'dark', 'light']) {
+    const previous = await page.locator('#liveCardImage').getAttribute('src');
+    await page.locator(`input[name="cardBackground"][value="${background}"]`).check();
+    await expect(page.locator('#textColor')).toHaveValue(background === 'dark' ? '#f5f5f7' : '#111111');
+    await expect(page.locator('#liveCardImage')).not.toHaveAttribute('src', previous);
+  }
+  await page.locator('#tabWii').click();
+  expect(await page.locator('#cardForm').evaluate((form) => new FormData(form).get('cardBackground'))).toBe('light');
+});
+
+
+test('temporary rendering limits recover without clearing the preview', async ({ page }) => {
+  let busy = true;
+  await page.route('**/card-preview', (route) => {
+    if (busy) {
+      busy = false;
+      return route.fulfill({ status: 429, headers: { 'Retry-After': '1' }, contentType: 'application/json',
+        body: JSON.stringify({ error: 'Card rendering is busy. Please try again shortly.' }) });
+    }
+    return route.continue();
+  });
+  await page.goto('/');
+  await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+  await expect(page.locator('#liveCardImage')).toBeVisible();
 });
