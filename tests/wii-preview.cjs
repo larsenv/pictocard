@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { renderWiiLetter } = require('../lib/wiiPreview');
 const wiiMail = require('../lib/wiiMail');
+const { createCanvas, loadImage } = require('canvas');
 const face = Buffer.from('AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6', 'base64');
 
 test('native previews are shipped for every selectable letterhead', async () => {
@@ -16,6 +17,17 @@ test('native previews are shipped for every selectable letterhead', async () => 
   }
   const result = await renderWiiLetter({ text: 'Hello Wii' });
   assert.match(result.pages[0], /^data:image\/png;base64,/);
+});
+
+test('default live letterhead has no envelope remnants below the paper', async () => {
+  const paper = await loadImage(path.join(__dirname, '..', 'public', 'images', 'wii-letters', 'default.png'));
+  const canvas = createCanvas(paper.width, paper.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(paper, 0, 0);
+  const bottom = ctx.getImageData(0, 360, paper.width, paper.height - 360).data;
+  for (let i = 3; i < bottom.length; i += 4) {
+    assert.equal(bottom[i], 0, 'the area below the paper must remain transparent');
+  }
 });
 
 test('Wii faces recover after HTTP and image decoding failures', async (t) => {
