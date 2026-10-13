@@ -674,12 +674,6 @@ input[type='color'] {
   object-fit: contain;
   border-radius: 0;
 }
-.wii-watermark {
-  position: absolute;
-  bottom: 3px;
-  color: #aaaaaa;
-  font-size: 16px;
-}
 .wii-preview-controls {
   display: flex;
   align-items: center;
