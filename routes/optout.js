@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const { emailOptOuts, hashEmail } = require('./index');
 const { wiiOptOuts, discordOptOuts } = require('../lib/optouts');
+const { safeEqual } = require('../lib/middleware');
 const { sendOptoutConfirmation, sendOptoutVerificationCode } = require('../lib/emailService');
 const { sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
 let config;
@@ -190,7 +191,7 @@ router.post('/verify', verifyIpLimiter, async (req, res) => {
     });
   }
 
-  if (!code || code.trim() !== pending.code) {
+  if (typeof code !== 'string' || !pending.code || !safeEqual(code.trim(), pending.code)) {
     pending.attempts = (pending.attempts || 0) + 1;
     // Too many wrong guesses: discard the pending request entirely.
     if (pending.attempts >= MAX_CODE_ATTEMPTS) {

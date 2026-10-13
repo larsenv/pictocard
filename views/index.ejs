@@ -47,7 +47,7 @@
                 type="button"
                 class="tab-btn <%= (discordTab || wiiTab) ? '' : 'tab-active' %>"
                 id="tabEmail"
-                onclick="switchTab('email')"
+                data-tab="email"
               >
                 Email
               </button>
@@ -63,7 +63,7 @@
                 type="button"
                 class="tab-btn <%= wiiTab ? 'tab-active' : '' %>"
                 id="tabWii"
-                onclick="switchTab('wii')"
+                data-tab="wii"
               >
                 Wii
               </button>
@@ -204,6 +204,13 @@
                   <span class="field-hint"
                     >JPEG, PNG, GIF or WebP, up to 10 MB. <%= pending && pending.wiiImage ? 'Leave empty to keep your current picture.' : '' %></span
                   >
+                  <label for="wiiImageUrl">Or import from a link</label>
+                  <div class="image-url-row">
+                    <input type="url" id="wiiImageUrl" inputmode="url" autocomplete="off"
+                      autocapitalize="none" spellcheck="false" placeholder="https://example.com/photo.jpg" />
+                    <button type="button" class="btn btn-secondary" id="importWiiImage">Import</button>
+                  </div>
+                  <span class="field-hint" id="wiiImageUrlStatus" role="status" aria-live="polite">Paste a direct link to a JPEG, PNG, GIF or WebP image.</span>
                 </div>
                 <div id="wiiCardTextField" style="display: none">
                   <label for="wiiCardText">Text on the PictoCard (Optional)</label>
@@ -469,7 +476,7 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <% } %>
 
-    <script>
+    <script nonce="<%= nonce %>">
       const discordName = document.getElementById('recipientDiscord');
       discordName.addEventListener('input', () => {
         discordName.value = discordName.value.replace(/^@+/, '');
@@ -597,6 +604,7 @@
         }
         applyWiiMode();
       }
+      document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
       switchTab(document.getElementById('deliveryMethod').value);
 
       // Discord tab click - redirect to login if not authorized, otherwise switch tabs

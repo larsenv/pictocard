@@ -9,7 +9,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
-const { validateCsrf } = require('../lib/middleware');
+const { validateCsrf, safeEqual } = require('../lib/middleware');
 const {
   renderWork, startRender, finishRender, singleSubmission, uploadStorage, MAX_FILE_BYTES
 } = require('../lib/renderWork');
@@ -970,7 +970,7 @@ router.post('/verify', sendIpLimiter, sendRecipientLimiter, singleSubmission, as
         });
       }
 
-      if (!code || code.trim() !== pending.code) {
+      if (typeof code !== 'string' || !pending.code || !safeEqual(code.trim(), pending.code)) {
         pending.codeAttempts = (pending.codeAttempts || 0) + 1;
         // Too many wrong guesses: invalidate the code so a new one must be requested.
         if (pending.codeAttempts >= MAX_CODE_ATTEMPTS) {

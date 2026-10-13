@@ -53,62 +53,67 @@
 
   // Import the picture from a URL: the server downloads it, then it is put in
   // the picture field exactly like a file the user chose.
-  const importUrl = document.getElementById('imageUrl');
-  const importButton = document.getElementById('importImage');
-  const importStatus = document.getElementById('imageUrlStatus');
-  const importHint = importStatus.textContent;
-  function importMessage(text, isError) {
-    importStatus.textContent = text;
-    importStatus.classList.toggle('field-error', !!isError);
-  }
-  async function importImage() {
-    const url = importUrl.value.trim();
-    if (!url) return importMessage('Paste an image link first.', true);
-    importButton.disabled = true;
-    importMessage('Importing…');
-    try {
-      const send = () => fetch('/image-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': form.elements._csrf.value },
-        body: JSON.stringify({ url })
-      });
-      let response = await send();
-      if (response.status === 403) {
-        const fresh = await fetch('/form-token');
-        if (fresh.ok) {
-          form.elements._csrf.value = (await fresh.json()).csrfToken;
-          response = await send();
+  function setupImport(urlId, buttonId, statusId, target) {
+    const importUrl = document.getElementById(urlId);
+    const importButton = document.getElementById(buttonId);
+    const importStatus = document.getElementById(statusId);
+    if (!importUrl || !importButton || !importStatus || !target) return;
+    const importHint = importStatus.textContent;
+    function importMessage(text, isError) {
+      importStatus.textContent = text;
+      importStatus.classList.toggle('field-error', !!isError);
+    }
+    async function importImage() {
+      const url = importUrl.value.trim();
+      if (!url) return importMessage('Paste an image link first.', true);
+      importButton.disabled = true;
+      importMessage('Importing…');
+      try {
+        const send = () => fetch('/image-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': form.elements._csrf.value },
+          body: JSON.stringify({ url })
+        });
+        let response = await send();
+        if (response.status === 403) {
+          const fresh = await fetch('/form-token');
+          if (fresh.ok) {
+            form.elements._csrf.value = (await fresh.json()).csrfToken;
+            response = await send();
+          }
         }
+        if (!response.ok) {
+          const type = response.headers.get('content-type') || '';
+          const body = type.includes('application/json') ? await response.json() : {};
+          return importMessage(body.error || 'Could not import that image. Please try again.', true);
+        }
+        const blob = await response.blob();
+        const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[blob.type] || 'img';
+        let name = 'imported-image';
+        try { name = decodeURIComponent(new URL(url).pathname.split('/').pop()) || name; } catch { /* keep default */ }
+        if (!/\.(jpe?g|png|gif|webp)$/i.test(name)) name = `${name.replace(/\.[^.]*$/, '')}.${extension}`;
+        const transfer = new DataTransfer();
+        transfer.items.add(new File([blob], name, { type: blob.type }));
+        target.files = transfer.files;
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        importMessage(importHint);
+        importUrl.value = '';
+      } catch {
+        importMessage('Could not import that image. Check your connection and try again.', true);
+      } finally {
+        importButton.disabled = false;
       }
-      if (!response.ok) {
-        const type = response.headers.get('content-type') || '';
-        const body = type.includes('application/json') ? await response.json() : {};
-        return importMessage(body.error || 'Could not import that image. Please try again.', true);
-      }
-      const blob = await response.blob();
-      const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[blob.type] || 'img';
-      let name = 'imported-image';
-      try { name = decodeURIComponent(new URL(url).pathname.split('/').pop()) || name; } catch { /* keep default */ }
-      if (!/\.(jpe?g|png|gif|webp)$/i.test(name)) name = `${name.replace(/\.[^.]*$/, '')}.${extension}`;
-      const transfer = new DataTransfer();
-      transfer.items.add(new File([blob], name, { type: blob.type }));
-      pictureInput.files = transfer.files;
-      pictureInput.dispatchEvent(new Event('change', { bubbles: true }));
-      importMessage(importHint);
-      importUrl.value = '';
-    } catch {
-      importMessage('Could not import that image. Check your connection and try again.', true);
-    } finally {
-      importButton.disabled = false;
     }
+    importButton.addEventListener('click', importImage);
+    importUrl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        importImage();
+      }
+    });
   }
-  importButton.addEventListener('click', importImage);
-  importUrl.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      importImage();
-    }
-  });
+  setupImport('imageUrl', 'importImage', 'imageUrlStatus', pictureInput);
+  setupImport('wiiImageUrl', 'importWiiImage', 'wiiImageUrlStatus', document.getElementById('wiiImage'));
 
   function showPreview(open) {
     preview.classList.toggle('preview-open', open);

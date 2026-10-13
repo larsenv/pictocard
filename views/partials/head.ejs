@@ -82,7 +82,7 @@
 </script>
 <% } %>
 
-<script>
+<script nonce="<%= nonce %>">
   try {
     const savedTheme = localStorage.getItem('pictocard-theme');
     document.documentElement.dataset.theme = savedTheme === 'light' || savedTheme === 'dark'
