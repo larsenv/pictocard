@@ -2,10 +2,10 @@
   <div class="header-inner">
     <a href="/" class="brand"><img src="/images/logo.png" alt="PictoCard" width="117" height="56" fetchpriority="high" /></a>
     <nav class="header-nav" id="siteNavigation" aria-label="Main navigation">
-      <a href="/">Create a card</a>
-      <a href="/tos">Terms</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/optout">Opt-out</a>
+      <a href="/" <% if (locals.currentPath === '/') { %>aria-current="page"<% } %>>Create a card</a>
+      <a href="/tos" <% if (locals.currentPath === '/tos') { %>aria-current="page"<% } %>>Terms</a>
+      <a href="/privacy" <% if (locals.currentPath === '/privacy') { %>aria-current="page"<% } %>>Privacy</a>
+      <a href="/optout" <% if (locals.currentPath === '/optout') { %>aria-current="page"<% } %>>Opt-out</a>
     </nav>
     <div class="header-buttons">
       <button type="button" class="theme-toggle" id="themeToggle">Dark mode</button>
