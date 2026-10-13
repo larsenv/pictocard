@@ -10,6 +10,9 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const sharp = require('sharp');
 const { validateCsrf } = require('../lib/middleware');
+const {
+  renderWork, startRender, finishRender, singleSubmission, uploadStorage, MAX_FILE_BYTES
+} = require('../lib/renderWork');
 
 // Reject decompression bombs: images whose pixel dimensions blow up memory/CPU
 // even though the compressed file is under the multer size limit.
@@ -102,8 +105,8 @@ async function checkContentModeration(text) {
 const emailOptOuts = new Set();
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  storage: uploadStorage,
+  limits: { fileSize: MAX_FILE_BYTES, files: 4, fields: 32, fieldSize: 4096, parts: 36 },
   fileFilter: (_req, file, cb) => {
     if (file.fieldname === 'cardImage') {
       const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -150,17 +153,19 @@ function formDraft(req) {
   const text = (key) => typeof body[key] === 'string' ? body[key] : '';
   const method = text('deliveryMethod');
   const previous = req.session.pending || {};
-  const cardBackground = text('cardBackground') === 'dark' ? 'dark' : 'light';
+  const submittedBackground = text('cardBackground');
+  const cardBackground = ['light', 'dark'].includes(submittedBackground)
+    ? submittedBackground : previous.cardBackground === 'dark' ? 'dark' : 'light';
   return {
-    originalImage: previous.originalImage || null,
-    miiData: retainedCardMii(req),
+    originalImage: req.draftAssets?.originalImage ?? previous.originalImage ?? null,
+    miiData: req.draftAssets?.miiData !== undefined ? req.draftAssets.miiData : retainedCardMii(req),
     recipientEmail: method === 'email' ? text('recipientEmail').trim() || null : null,
     recipientDiscord: method === 'discord' ? text('recipientDiscord').trim().replace(/^@/, '') || null : null,
     senderName: text('senderName').trim(),
     senderEmail: method === 'email' ? text('senderEmail').trim() || null : null,
     cardText: text('cardText').replace(/\r\n?/g, '\n'),
-    fontFamily: text('fontFamily') || 'rodinntlg',
-    textColor: text('textColor') || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
+    fontFamily: text('fontFamily') || previous.fontFamily || 'rodinntlg',
+    textColor: text('textColor') || (!submittedBackground && previous.textColor) || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
     cardBackground,
     verifyViaDiscord: method === 'discord',
     wiiTab: method === 'wii',
@@ -169,8 +174,8 @@ function formDraft(req) {
     wiiAttach: ['image', 'card'].includes(text('wiiAttach')) ? text('wiiAttach') : 'none',
     wiiCardText: text('wiiCardText').replace(/\r\n?/g, '\n'),
     letterhead: text('letterhead'),
-    wiiMiiData: previous.wiiMiiData || previous.wii?.mii || null,
-    wiiImage: previous.wiiImage || null
+    wiiMiiData: req.draftAssets?.wiiMiiData ?? previous.wiiMiiData ?? previous.wii?.mii ?? null,
+    wiiImage: req.draftAssets?.wiiImage ?? previous.wiiImage ?? null
   };
 }
 
@@ -322,6 +327,24 @@ async function readCardMii(req) {
   return mii;
 }
 
+async function preserveDraftAssets(req) {
+  req.draftAssets = {};
+  for (const [field, stored, preset] of [
+    ['cardImage', 'originalImage', req.body?.presetImage],
+    ['wiiImage', 'wiiImage', '']
+  ]) {
+    if (req.files?.[field]?.[0] || preset) {
+      const buffer = await readImage(req, field, stored, preset);
+      if (buffer) req.draftAssets[stored] = buffer.toString('base64');
+    }
+  }
+  if (req.files?.wiiMii?.[0]) req.draftAssets.wiiMiiData = readWiiMii(req).toString('base64');
+  if (req.files?.miiFile?.[0] || req.body?.cardMiiData) {
+    const mii = await readCardMii(req);
+    req.draftAssets.miiData = mii ? mii.toString('base64') : null;
+  }
+}
+
 function retainedCardMii(req) {
   const submitted = req.body?.cardMiiData;
   if (submitted === 'remove') return null;
@@ -331,13 +354,14 @@ function retainedCardMii(req) {
   return req.session.pending?.miiData || null;
 }
 
-router.post('/mii-import', rateLimit({ windowMs: 60_000, max: 30 }),
+router.post('/mii-import', rateLimit({ windowMs: 60_000, max: 30 }), renderWork,
   (req, res, next) => upload.single('miiImportFile')(req, res, (error) => {
     validateCsrf(req, res, () => {
       if (error) return res.status(400).json({ error: 'Choose a Mii file under 10 MB.' });
       next();
     });
   }), async (req, res) => {
+    if (!startRender(req, res)) return;
     res.set('Cache-Control', 'no-store');
     try {
       const { source, value } = req.body;
@@ -349,8 +373,11 @@ router.post('/mii-import', rateLimit({ windowMs: 60_000, max: 30 }),
       res.json({ data: mii.data.toString('base64'), name: mii.name,
         image: `data:image/png;base64,${image.toString('base64')}` });
     } catch (error) {
-      res.status(error.code === 'CARD_INPUT' ? 422 : 500).json({ error: error.code === 'CARD_INPUT'
+      if (error.code !== 'CARD_INPUT') console.error('[mii-import]', error.message);
+      res.status(error.code === 'CARD_INPUT' ? 422 : 503).json({ error: ['CARD_INPUT', 'MII_SERVICE'].includes(error.code)
         ? error.message : 'Could not load that Mii. Please try again.' });
+    } finally {
+      finishRender(req);
     }
   });
 
@@ -373,14 +400,16 @@ router.post('/card-preview', rateLimit({
   windowMs: 60_000,
   max: 60,
   message: { error: 'Preview updates are temporarily paused. Try again in a minute.' }
-}), (req, res, next) => {
+}), renderWork, (req, res, next) => {
   uploadFields(req, res, (error) => {
     validateCsrf(req, res, () => {
-      if (error) return res.status(400).json({ error: 'Could not read the upload. Choose a file under 10 MB.' });
+      if (error) return res.status(400).json({ error: error.code === 'LIMIT_UPLOAD_BYTES'
+        ? error.message : 'Could not read the upload. Choose a file under 10 MB.' });
       next();
     });
   });
 }, async (req, res) => {
+  if (!startRender(req, res)) return;
   res.set('Cache-Control', 'no-store');
   try {
     const draft = formDraft(req);
@@ -429,13 +458,15 @@ router.post('/card-preview', rateLimit({
   } catch (error) {
     const expected = ['TEXT_OVERFLOW', 'CARD_INPUT'].includes(error.code);
     if (!expected) console.error('[card-preview]', error.message);
-    res.status(expected ? 422 : 500).json({
-      error: expected ? error.message : 'Could not update the preview. Please try another image.',
+    res.status(expected ? 422 : error.code === 'MII_SERVICE' ? 503 : 500).json({
+      error: expected || error.code === 'MII_SERVICE' ? error.message : 'Could not update the preview. Please try another image.',
       textOverflow: error.code === 'TEXT_OVERFLOW',
       textField: req.body.deliveryMethod === 'wii' && req.body.wiiAttach === 'card' &&
         typeof req.body.wiiCardText === 'string' && req.body.wiiCardText.trim()
         ? 'wiiCardText' : 'cardText'
     });
+  } finally {
+    finishRender(req);
   }
 });
 
@@ -508,7 +539,7 @@ async function createWiiPending(req, res, o) {
     wiiMiiData: mii ? mii.toString('base64') : previous.wiiMiiData || null,
     wiiImage: picture ? picture.toString('base64') : previous.wiiImage || null,
     originalImage: imageBuffer ? imageBuffer.toString('base64') : previous.originalImage || null,
-    miiData: cardMii ? cardMii.toString('base64') : previous.miiData || null,
+    miiData: attach === 'card' ? cardMii?.toString('base64') || null : retainedCardMii(req),
     wii: {
       mii: mii ? mii.toString('base64') : null,
       attach,
@@ -526,13 +557,15 @@ async function createWiiPending(req, res, o) {
 router.post(
   '/create',
   createLimiter,
+  singleSubmission,
+  renderWork,
   (req, res, next) => {
     uploadFields(req, res, (err) => {
       validateCsrf(req, res, () => {
         if (!err) return next();
         req.session.pending = formDraft(req);
         if (!(err instanceof multer.MulterError)) return next(err);
-        req.session.formError = err.code === 'LIMIT_FILE_SIZE'
+        req.session.formError = err.code === 'LIMIT_UPLOAD_BYTES' ? err.message : err.code === 'LIMIT_FILE_SIZE'
           ? 'That file is too large. Please choose one under 10 MB.'
           : 'Could not accept the upload. Please choose your files again.';
         res.redirect('/');
@@ -540,15 +573,17 @@ router.post(
     });
   },
   async (req, res) => {
+    if (!startRender(req, res)) return;
     try {
+      await preserveDraftAssets(req);
       const {
         deliveryMethod,
         recipientEmail: submittedEmail,
         recipientDiscord: submittedDiscord,
         senderName,
         cardText: submittedText,
-        fontFamily,
-        textColor,
+        fontFamily: submittedFont,
+        textColor: submittedColor,
         cardBackground: submittedBackground,
         presetImage,
         senderEmail,
@@ -561,7 +596,10 @@ router.post(
 
       const usingDiscord = deliveryMethod === 'discord';
       const usingWii = deliveryMethod === 'wii';
-      const cardBackground = submittedBackground === 'dark' ? 'dark' : 'light';
+      const cardBackground = formDraft(req).cardBackground;
+      const fontFamily = submittedFont || req.session.pending?.fontFamily || 'rodinntlg';
+      const textColor = submittedColor || (!submittedBackground && req.session.pending?.textColor) ||
+        (cardBackground === 'dark' ? '#f5f5f7' : '#111111');
       const cardText = typeof submittedText === 'string' ? submittedText.replace(/\r\n?/g, '\n') : '';
       const wiiCardText = typeof submittedCardText === 'string' ? submittedCardText.replace(/\r\n?/g, '\n') : '';
       const recipientEmail = deliveryMethod === 'email' ? submittedEmail : null;
@@ -727,10 +765,12 @@ router.post(
       res.redirect('/preview');
     } catch (err) {
       console.error('[POST /create]', err);
-      req.session.formError = ['TEXT_OVERFLOW', 'CARD_INPUT'].includes(err.code)
+      req.session.formError = ['TEXT_OVERFLOW', 'CARD_INPUT', 'MII_SERVICE'].includes(err.code)
         ? err.message : 'Something went wrong. Please try again.';
       req.session.pending = formDraft(req);
       res.redirect('/');
+    } finally {
+      finishRender(req);
     }
   }
 );
@@ -754,7 +794,9 @@ router.get('/preview', async (req, res) => {
     : pending.recipientDiscord
       ? `data:image/png;base64,${pending.generatedCard}`
       : null;
-  const sendError = req.session.previewSendError || null;
+  const sendBlocked = ['sending', 'uncertain'].includes(pending.wiiDelivery);
+  const sendError = req.session.previewSendError || (sendBlocked
+    ? 'Wii delivery could not be confirmed. Check the Wii Message Board before creating another send.' : null);
   delete req.session.previewSendError;
   if (!pending.wii && !pending.recipientDiscord) {
     const buffer = await prepareCardAttachment(Buffer.from(pending.generatedCard, 'base64'));
@@ -777,7 +819,8 @@ router.get('/preview', async (req, res) => {
     cardText: pending.cardText,
     wii,
     sendError,
-    canRetryDirectly: !!pending.codeVerified,
+    canRetryDirectly: !!pending.codeVerified && !sendBlocked,
+    sendBlocked,
     skipVerify: !!pending.skipVerify,
     domain: config.domain
   });
@@ -835,154 +878,173 @@ router.get('/verify', (req, res) => {
   });
 });
 
+function saveSession(req) {
+  if (!req.session.save) return Promise.resolve();
+  return new Promise((resolve, reject) => req.session.save((error) => error ? reject(error) : resolve()));
+}
+
 // ── POST /verify ─────────────────────────────────────────────────────────────
-router.post('/verify', sendIpLimiter, sendRecipientLimiter, async (req, res) => {
-  const pending = req.session.pending;
-  if (!pending || !(pending.generatedCard || pending.wii)) return res.redirect('/');
+router.post('/verify', sendIpLimiter, sendRecipientLimiter, singleSubmission, async (req, res) => {
+  if (!startRender(req, res)) return;
+  try {
+    const pending = req.session.pending;
+    if (!pending || !(pending.generatedCard || pending.wii)) return res.redirect('/');
 
-  const { code, retry } = req.body || {};
+    if (['sending', 'uncertain'].includes(pending.wiiDelivery)) return res.redirect('/preview');
 
-  // If this is a retry (Discord delivery failed but code was already verified)
-  const isRetry = retry === '1' && pending.codeVerified;
+    const { code, retry } = req.body || {};
 
-  if (!isRetry) {
-    if (Date.now() > pending.codeExpiry) {
-      return res.render('verify', {
-        error: 'Verification code expired. Please request a new one.',
-        email: pending.senderEmail,
-        verifyViaDiscord: !!pending.verifyViaDiscord,
-        verifyViaWii: !!pending.senderWii,
-        wiiNumber: pending.senderWii || null,
-        discordUsername: pending.senderDiscord || null,
-        domain: config.domain
-      });
-    }
+    // If this is a retry (Discord delivery failed but code was already verified)
+    const isRetry = retry === '1' && pending.codeVerified;
 
-    if (!code || code.trim() !== pending.code) {
-      pending.codeAttempts = (pending.codeAttempts || 0) + 1;
-      // Too many wrong guesses: invalidate the code so a new one must be requested.
-      if (pending.codeAttempts >= MAX_CODE_ATTEMPTS) {
-        pending.code = null;
-        pending.codeExpiry = 0;
+    if (!isRetry) {
+      if (Date.now() > pending.codeExpiry) {
         return res.render('verify', {
-          error: 'Too many incorrect attempts. Please go back and request a new code.',
+          error: 'Verification code expired. Please request a new one.',
           email: pending.senderEmail,
           verifyViaDiscord: !!pending.verifyViaDiscord,
-        verifyViaWii: !!pending.senderWii,
-        wiiNumber: pending.senderWii || null,
+          verifyViaWii: !!pending.senderWii,
+          wiiNumber: pending.senderWii || null,
           discordUsername: pending.senderDiscord || null,
           domain: config.domain
         });
       }
+
+      if (!code || code.trim() !== pending.code) {
+        pending.codeAttempts = (pending.codeAttempts || 0) + 1;
+        // Too many wrong guesses: invalidate the code so a new one must be requested.
+        if (pending.codeAttempts >= MAX_CODE_ATTEMPTS) {
+          pending.code = null;
+          pending.codeExpiry = 0;
+          return res.render('verify', {
+            error: 'Too many incorrect attempts. Please go back and request a new code.',
+            email: pending.senderEmail,
+            verifyViaDiscord: !!pending.verifyViaDiscord,
+          verifyViaWii: !!pending.senderWii,
+          wiiNumber: pending.senderWii || null,
+            discordUsername: pending.senderDiscord || null,
+            domain: config.domain
+          });
+        }
+        return res.render('verify', {
+          error: 'Incorrect code. Please try again.',
+          email: pending.senderEmail,
+          verifyViaDiscord: !!pending.verifyViaDiscord,
+          verifyViaWii: !!pending.senderWii,
+          wiiNumber: pending.senderWii || null,
+          discordUsername: pending.senderDiscord || null,
+          domain: config.domain
+        });
+      }
+
+      // Mark code as verified for potential retry
+      pending.codeVerified = true;
+      // Remember the address for this Discord account so it is a one-time step
+      if (!pending.verifyViaDiscord && req.session.discordUser) {
+        try {
+          markEmailVerified(
+            req.session.discordUser.id,
+            pending.wii ? `wii:${pending.senderWii}` : pending.senderEmail
+          );
+        } catch (err) {
+          console.error('[verifiedEmails]', err.message);
+        }
+      }
+    }
+    try {
+      if (pending.wii) {
+        try {
+          pending.wiiDelivery = 'sending';
+          await saveSession(req);
+          await sendWiiMail({
+            recipient: pending.recipientWii,
+            senderName: pending.senderName,
+            text: pending.cardText,
+            mii: pending.wii.mii ? Buffer.from(pending.wii.mii, 'base64') : null,
+            jpeg: pending.wii.jpeg ? Buffer.from(pending.wii.jpeg, 'base64') : null,
+            letterheadArc: pending.wii.letterhead ? wiiMail.readLetterheadArc(pending.wii.letterhead) : null
+          });
+        } catch (err) {
+          console.error('[Wii mail]', err.message);
+          pending.wiiDelivery = err.code === 'WC24_UNCERTAIN' ? 'uncertain' : 'rejected';
+          req.session.previewSendError = pending.wiiDelivery === 'uncertain'
+            ? 'Wii delivery could not be confirmed. Check the Wii Message Board before creating another send.'
+            : 'Could not deliver the card to that Wii. Check the Wii Number and that PictoCard is in its address book.';
+          await saveSession(req);
+          return res.redirect('/preview');
+        }
+        delete req.session.pending;
+        await saveSession(req);
+        return res.redirect('/?sent=1');
+      }
+
+      const cardBuffer = Buffer.from(pending.generatedCard, 'base64');
+
+      if (pending.recipientDiscord) {
+        const username = pending.recipientDiscord.trim();
+        if (isDiscordUserOptedOut(username)) {
+          req.session.formError = 'That Discord user has opted out of receiving PictoCards.';
+          delete req.session.pending;
+          return res.redirect('/');
+        }
+        const result = await sendCardToDiscordUser(
+          username,
+          pending.senderName,
+          pending.cardText,
+          cardBuffer,
+          pending.senderDiscordUserId || null
+        );
+        if (!result.success) {
+          req.session.previewSendError = `Could not deliver card: ${result.error}`;
+          return res.redirect('/preview');
+        }
+        if (pending.senderDiscord || pending.senderDiscordUserId) {
+          sendConfirmationViaDM(
+            pending.senderDiscord,
+            username,
+            cardBuffer,
+            pending.senderDiscordUserId
+          ).catch((err) => console.error('[sendConfirmationViaDM]', err));
+        }
+      } else {
+        if (emailOptOuts.has(hashEmail(pending.recipientEmail))) {
+          req.session.formError = 'That recipient has opted out of receiving PictoCards.';
+          delete req.session.pending;
+          return res.redirect('/');
+        }
+        await sendCard(
+          pending.recipientEmail,
+          pending.senderName,
+          pending.cardText,
+          cardBuffer,
+          pending.senderEmail
+        );
+        if (pending.senderEmail) {
+          sendCardConfirmation(
+            pending.senderEmail,
+            pending.senderName,
+            pending.recipientEmail,
+            cardBuffer
+          ).catch((err) => console.error('[sendCardConfirmation]', err.message));
+        }
+      }
+
+      delete req.session.pending;
+      res.redirect('/?sent=1');
+    } catch (err) {
+      console.error('[POST /verify]', err);
       return res.render('verify', {
-        error: 'Incorrect code. Please try again.',
+        error: 'Failed to send card. Please try again.',
         email: pending.senderEmail,
         verifyViaDiscord: !!pending.verifyViaDiscord,
-        verifyViaWii: !!pending.senderWii,
-        wiiNumber: pending.senderWii || null,
+          verifyViaWii: !!pending.senderWii,
+          wiiNumber: pending.senderWii || null,
         discordUsername: pending.senderDiscord || null,
         domain: config.domain
       });
     }
-
-    // Mark code as verified for potential retry
-    pending.codeVerified = true;
-    // Remember the address for this Discord account so it is a one-time step
-    if (!pending.verifyViaDiscord && req.session.discordUser) {
-      try {
-        markEmailVerified(
-          req.session.discordUser.id,
-          pending.wii ? `wii:${pending.senderWii}` : pending.senderEmail
-        );
-      } catch (err) {
-        console.error('[verifiedEmails]', err.message);
-      }
-    }
-  }
-  try {
-    if (pending.wii) {
-      try {
-        await sendWiiMail({
-          recipient: pending.recipientWii,
-          senderName: pending.senderName,
-          text: pending.cardText,
-          mii: pending.wii.mii ? Buffer.from(pending.wii.mii, 'base64') : null,
-          jpeg: pending.wii.jpeg ? Buffer.from(pending.wii.jpeg, 'base64') : null,
-          letterheadArc: pending.wii.letterhead ? wiiMail.readLetterheadArc(pending.wii.letterhead) : null
-        });
-      } catch (err) {
-        console.error('[Wii mail]', err.message);
-        req.session.previewSendError = 'Could not deliver the card to that Wii. Check the Wii Number and that PictoCard is in its address book.';
-        return res.redirect('/preview');
-      }
-      delete req.session.pending;
-      return res.redirect('/?sent=1');
-    }
-
-    const cardBuffer = Buffer.from(pending.generatedCard, 'base64');
-
-    if (pending.recipientDiscord) {
-      const username = pending.recipientDiscord.trim();
-      if (isDiscordUserOptedOut(username)) {
-        req.session.formError = 'That Discord user has opted out of receiving PictoCards.';
-        delete req.session.pending;
-        return res.redirect('/');
-      }
-      const result = await sendCardToDiscordUser(
-        username,
-        pending.senderName,
-        pending.cardText,
-        cardBuffer,
-        pending.senderDiscordUserId || null
-      );
-      if (!result.success) {
-        req.session.previewSendError = `Could not deliver card: ${result.error}`;
-        return res.redirect('/preview');
-      }
-      if (pending.senderDiscord || pending.senderDiscordUserId) {
-        sendConfirmationViaDM(
-          pending.senderDiscord,
-          username,
-          cardBuffer,
-          pending.senderDiscordUserId
-        ).catch((err) => console.error('[sendConfirmationViaDM]', err));
-      }
-    } else {
-      if (emailOptOuts.has(hashEmail(pending.recipientEmail))) {
-        req.session.formError = 'That recipient has opted out of receiving PictoCards.';
-        delete req.session.pending;
-        return res.redirect('/');
-      }
-      await sendCard(
-        pending.recipientEmail,
-        pending.senderName,
-        pending.cardText,
-        cardBuffer,
-        pending.senderEmail
-      );
-      if (pending.senderEmail) {
-        sendCardConfirmation(
-          pending.senderEmail,
-          pending.senderName,
-          pending.recipientEmail,
-          cardBuffer
-        ).catch((err) => console.error('[sendCardConfirmation]', err.message));
-      }
-    }
-
-    delete req.session.pending;
-    res.redirect('/?sent=1');
-  } catch (err) {
-    console.error('[POST /verify]', err);
-    return res.render('verify', {
-      error: 'Failed to send card. Please try again.',
-      email: pending.senderEmail,
-      verifyViaDiscord: !!pending.verifyViaDiscord,
-        verifyViaWii: !!pending.senderWii,
-        wiiNumber: pending.senderWii || null,
-      discordUsername: pending.senderDiscord || null,
-      domain: config.domain
-    });
+  } finally {
+    finishRender(req);
   }
 });
 
@@ -1001,7 +1063,7 @@ router.get('/tos', (_req, res) => {
 
 // ── GET /privacy ──────────────────────────────────────────────────────────────
 router.get('/privacy', (_req, res) => {
-  res.render('privacy', { lastUpdated: '2026-03-09', domain: config.domain });
+  res.render('privacy', { lastUpdated: '2026-10-12', domain: config.domain });
 });
 
 module.exports = router;
