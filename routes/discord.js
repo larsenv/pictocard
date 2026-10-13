@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { randomBytes } = require('crypto');
 const router = express.Router();
 
 let config;
@@ -21,16 +22,19 @@ function discordEnabled() {
 }
 
 // ── GET /discord ──────────────────────────────────────────────────────────────
-router.get('/', (_req, res) => {
+router.get('/', (req, res) => {
   if (!discordEnabled()) {
     return res.redirect('/?discord_disabled=1');
   }
+  const state = randomBytes(24).toString('hex');
+  req.session.discordOAuthState = state;
   // Redirect to Discord OAuth2 with identify scope to retrieve display name
   const params = new URLSearchParams({
     client_id: config.discord.clientId,
     redirect_uri: config.discord.redirectUri,
     response_type: 'code',
-    scope: 'identify'
+    scope: 'identify',
+    state
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
 });
@@ -39,8 +43,13 @@ router.get('/', (_req, res) => {
 router.get('/callback', async (req, res) => {
   if (!discordEnabled()) return res.redirect('/');
 
-  const { code } = req.query;
-  if (!code) return res.redirect('/');
+  const { code, state } = req.query;
+  const expectedState = req.session.discordOAuthState;
+  delete req.session.discordOAuthState;
+  if (
+    typeof code !== 'string' || !code ||
+    typeof state !== 'string' || !expectedState || state !== expectedState
+  ) return res.redirect('/?discord_error=1');
 
   try {
     // Exchange code for token
