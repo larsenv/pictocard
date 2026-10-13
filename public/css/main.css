@@ -1131,3 +1131,33 @@ a:focus-visible, button:focus-visible, summary:focus-visible, .preset-option:has
   .picture-upload p { font-size: 13px; }
   .picture-upload .btn { font-size: 14px; }
 }
+
+/* ── Import picture from a link ── */
+.image-url-row {
+  display: flex;
+  gap: 10px;
+}
+.image-url-row input {
+  flex: 1;
+  min-width: 0;
+}
+.image-url-row .btn {
+  flex: 0 0 auto;
+}
+.field-error {
+  color: var(--danger);
+}
+input[type='url'] {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  color: var(--input-text);
+  font-family: var(--font);
+  font-size: 1rem;
+  padding: 10px 14px;
+  width: 100%;
+  outline: none;
+}
+input[type='url']:focus {
+  border-color: var(--accent);
+}

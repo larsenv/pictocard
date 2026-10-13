@@ -308,6 +308,16 @@
               </div>
             </div>
 
+            <div class="field image-url-field">
+              <label for="imageUrl">Or import from a link</label>
+              <div class="image-url-row">
+                <input type="url" id="imageUrl" inputmode="url" autocomplete="off"
+                  autocapitalize="none" spellcheck="false" placeholder="https://example.com/photo.jpg" />
+                <button type="button" class="btn btn-secondary" id="importImage">Import</button>
+              </div>
+              <span class="field-hint" id="imageUrlStatus" role="status" aria-live="polite">Paste a direct link to a JPEG, PNG, GIF or WebP image.</span>
+            </div>
+
             <% if (presets && presets.length > 0) { %>
             <div class="field">
               <details class="preset-details">
