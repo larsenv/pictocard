@@ -40,8 +40,5 @@
   navigation.addEventListener('click', (event) => {
     if (event.target.closest('a')) setMenu(false);
   });
-  for (const link of navigation.querySelectorAll('a')) {
-    if (link.pathname === location.pathname) link.setAttribute('aria-current', 'page');
-  }
   matchMedia('(max-width: 700px)').addEventListener('change', () => setMenu(false));
 })();

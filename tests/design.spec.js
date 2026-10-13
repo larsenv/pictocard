@@ -1,5 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+test('active navigation is bold before JavaScript runs', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  try {
+    for (const [url, href] of [
+      ['/', '/'], ['/tos', '/tos'], ['/privacy', '/privacy'],
+      ['/optout?action=optin', '/optout'], ['/privacy/', '/privacy']
+    ]) {
+      await page.goto(new URL(url, baseURL).href);
+      const active = page.locator('.header-nav a[aria-current="page"]');
+      await expect(active).toHaveCount(1);
+      await expect(active).toHaveAttribute('href', href);
+      await expect(active).toHaveCSS('font-weight', '700');
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test('fresh messages are empty and the fixed Discord prefix is never duplicated', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#pictureThumbnail')).toBeHidden();
