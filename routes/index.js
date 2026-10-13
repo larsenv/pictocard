@@ -39,6 +39,7 @@ async function isImageWithinLimits(buffer) {
 const FONTS = require('../lib/fonts');
 const { sendVerificationCode, sendCard, sendCardConfirmation, prepareCardAttachment } = require('../lib/emailService');
 const { generateCard } = require('../lib/cardGenerator');
+const { downloadImage } = require('../lib/imageImport');
 const { decodeMiiQr } = require('../lib/miiQr');
 const { importCardMii, parseMiiData, validateMiiData, renderMiiImage } = require('../lib/miiAssets');
 const wiiMail = require('../lib/wiiMail');
@@ -418,6 +419,30 @@ function readWiiMii(req) {
   const stored = req.session.pending?.wiiMiiData;
   return stored ? Buffer.from(stored, 'base64') : null;
 }
+
+const IMPORT_TYPES = { jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+
+// Fetch a picture from a URL so it doesn't have to be uploaded by hand. The
+// bytes go back to the page, which puts them in the picture field like a file.
+router.post('/image-import', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const buffer = await downloadImage(req.body && req.body.url);
+    if (!(await isImageWithinLimits(buffer))) {
+      throw cardInputError('That link is not an image, or it is larger than 6000×6000 pixels.');
+    }
+    const { format } = await sharp(buffer).metadata();
+    const type = IMPORT_TYPES[format];
+    if (!type) throw cardInputError('Only JPEG, PNG, GIF or WebP images can be imported.');
+    res.type(type).send(buffer);
+  } catch (error) {
+    const known = ['IMAGE_IMPORT', 'CARD_INPUT'].includes(error.code);
+    if (!known) console.error('[image-import]', error.message);
+    res.status(known ? 422 : 500).json({
+      error: known ? error.message : 'Could not import that image. Please try again.'
+    });
+  }
+});
 
 router.get('/form-token', (_req, res) => {
   res.set('Cache-Control', 'no-store').json({ csrfToken: res.locals.csrfToken });
