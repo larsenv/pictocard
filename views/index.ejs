@@ -423,6 +423,18 @@
                   <textarea id="miiCode" rows="3" maxlength="4096" placeholder="AwBgMIJUICvp…"></textarea>
                 </div>
                 </div>
+                <div class="field mii-expression">
+                  <label for="miiExpression">Expression</label>
+                  <select id="miiExpression" name="miiExpression">
+                    <% miiExpressionGroups.forEach(function(group) { %>
+                    <optgroup label="<%= group.label %>">
+                      <% group.items.forEach(function(item) { %>
+                      <option value="<%= item[0] %>" <%= miiExpression === item[0] ? 'selected' : '' %>><%= item[1] %></option>
+                      <% }); %>
+                    </optgroup>
+                    <% }); %>
+                  </select>
+                </div>
                 <input type="hidden" id="cardMiiData" name="cardMiiData" value="<%= pending && pending.miiData || '' %>" />
                 <div class="mii-actions">
                   <button type="button" class="btn btn-secondary" id="removeCardMii" <%= pending && pending.miiData ? '' : 'hidden' %>>Remove Mii</button>

@@ -14,6 +14,7 @@
   const image = document.getElementById('cardMiiThumbnail');
   const hint = document.getElementById('miiSourceHint');
   const drop = document.getElementById('miiDrop');
+  const expression = document.getElementById('miiExpression');
   const tabs = [...document.querySelectorAll('[data-mii-tab]')];
   let busy = false;
   let requestId = 0;
@@ -45,6 +46,16 @@
     hint.textContent = HINTS[tab];
     if (fromId && lookup.value.trim()) loadSoon();
   }
+
+  // Thumbnail of the loaded Mii in the chosen expression
+  function faceUrl(data) {
+    if (!data || data === 'remove') return '';
+    return `/mii-face?data=${encodeURIComponent(data)}&expression=${encodeURIComponent(expression.value)}`;
+  }
+  expression.addEventListener('change', () => {
+    const url = faceUrl(stored.value);
+    if (url) image.src = url;
+  });
 
   function report(text, isError) {
     status.textContent = text;
@@ -89,7 +100,7 @@
       if (id !== requestId) return; // a newer request replaced this one
       if (!response.ok) throw new Error(result.error);
       stored.value = result.data;
-      image.src = result.image;
+      image.src = faceUrl(result.data) || result.image;
       image.hidden = remove.hidden = false;
       file.value = '';
       file.setCustomValidity('');
@@ -169,4 +180,9 @@
   });
   form.addEventListener('submit', (event) => { if (busy) event.preventDefault(); });
   selectTab('nnid');
+  // A Mii kept from an earlier visit shows its thumbnail straight away
+  if (stored.value && stored.value !== 'remove') {
+    image.src = faceUrl(stored.value);
+    image.hidden = false;
+  }
 })();

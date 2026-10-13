@@ -41,7 +41,15 @@ const { sendVerificationCode, sendCard, sendCardConfirmation, prepareCardAttachm
 const { generateCard } = require('../lib/cardGenerator');
 const { downloadImage } = require('../lib/imageImport');
 const { decodeMiiQr } = require('../lib/miiQr');
-const { importCardMii, parseMiiData, validateMiiData, renderMiiImage } = require('../lib/miiAssets');
+const { EXPRESSIONS, EXPRESSION_GROUPS, importCardMii, parseMiiData, validateMiiData, renderMiiImage } = require('../lib/miiAssets');
+
+// Submitted expression, else the one already chosen, else normal
+function miiExpressionOf(req) {
+  const submitted = req.body?.miiExpression;
+  if (EXPRESSIONS.includes(submitted)) return submitted;
+  const previous = req.session.pending?.miiExpression;
+  return EXPRESSIONS.includes(previous) ? previous : 'normal';
+}
 const wiiMail = require('../lib/wiiMail');
 const { renderWiiLetter } = require('../lib/wiiPreview');
 const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
@@ -159,6 +167,7 @@ function formDraft(req) {
   return {
     originalImage: req.draftAssets?.originalImage ?? previous.originalImage ?? null,
     miiData: req.draftAssets?.miiData !== undefined ? req.draftAssets.miiData : retainedCardMii(req),
+    miiExpression: miiExpressionOf(req),
     recipientEmail: method === 'email' ? text('recipientEmail').trim() || null : null,
     recipientDiscord: method === 'discord' ? text('recipientDiscord').trim().replace(/^@/, '') || null : null,
     senderName: text('senderName').trim(),
@@ -226,6 +235,8 @@ router.get('/', (req, res) => {
     turnstileSiteKey: turnstileSiteKey(),
     letterheadGroups: wiiMail.letterheadGroups(),
     wiiEnabled: !!wc24Config(),
+    miiExpressionGroups: EXPRESSION_GROUPS,
+    miiExpression: EXPRESSIONS.includes(req.session.pending?.miiExpression) ? req.session.pending.miiExpression : 'normal',
     faq: FAQ
   });
   delete req.session.formError;
@@ -444,6 +455,21 @@ router.post('/image-import', rateLimit({ windowMs: 60_000, max: 20 }), async (re
   }
 });
 
+// Small Mii face image in a chosen expression, for the picker's thumbnail.
+router.get('/mii-face', rateLimit({ windowMs: 60_000, max: 60 }), renderWork, async (req, res) => {
+  if (!startRender(req, res)) return;
+  try {
+    const expression = EXPRESSIONS.includes(req.query.expression) ? req.query.expression : 'normal';
+    const data = parseMiiData(String(req.query.data || '').replace(/ /g, '+'));
+    const image = await renderMiiImage(data, 128, expression);
+    res.set('Cache-Control', 'private, max-age=3600').type('image/png').send(image);
+  } catch (error) {
+    res.status(error.code === 'CARD_INPUT' ? 422 : 503).end();
+  } finally {
+    finishRender(req);
+  }
+});
+
 router.get('/form-token', (_req, res) => {
   res.set('Cache-Control', 'no-store').json({ csrfToken: res.locals.csrfToken });
 });
@@ -486,6 +512,7 @@ router.post('/card-preview', rateLimit({
         textColor: draft.textColor,
         background: draft.cardBackground,
         miiData: await readCardMii(req),
+        miiExpression: draft.miiExpression,
         includeDate: true
       });
       if (wii) buffer = await wiiMail.toBaselineJpeg(buffer);
@@ -564,6 +591,7 @@ async function createWiiPending(req, res, o) {
       background: o.cardBackground,
       senderName: o.effectiveSenderName,
       miiData: cardMii,
+      miiExpression: o.miiExpression,
       includeDate: true
     });
     jpeg = await wiiMail.toBaselineJpeg(card);
@@ -587,6 +615,7 @@ async function createWiiPending(req, res, o) {
     wiiTab: true,
     wiiAttach: attach,
     wiiCardText: o.wiiCardText || '',
+    miiExpression: o.miiExpression || 'normal',
     letterhead: letterheadId,
     wiiMiiData: mii ? mii.toString('base64') : previous.wiiMiiData || null,
     wiiImage: picture ? picture.toString('base64') : previous.wiiImage || null,
@@ -752,6 +781,7 @@ router.post(
           fontFamily,
           textColor,
           cardBackground,
+          miiExpression: miiExpressionOf(req),
           presetImage,
           wiiAttach,
           letterhead
@@ -781,6 +811,7 @@ router.post(
         background: cardBackground,
         senderName: effectiveSenderName,
         miiData,
+        miiExpression: miiExpressionOf(req),
         includeDate: true
       });
 
@@ -798,6 +829,7 @@ router.post(
         fontFamily: fontFamily || 'rodinntlg',
         textColor: textColor || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
         miiData: miiData ? miiData.toString('base64') : null,
+        miiExpression: miiExpressionOf(req),
         originalImage: imageBuffer.toString('base64'),
         generatedCard: cardBuffer.toString('base64'),
         cardBackground
