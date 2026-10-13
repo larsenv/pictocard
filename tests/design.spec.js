@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('fresh messages are empty and the fixed Discord prefix is never duplicated', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('#pictureThumbnail')).toBeHidden();
   await expect(page.locator('#cardText')).toHaveValue('');
   await expect(page.locator('#charCounter')).toHaveText('0 / 500');
   await expect(page.locator('#cardText')).toHaveAttribute('placeholder', 'Write your message here...');
