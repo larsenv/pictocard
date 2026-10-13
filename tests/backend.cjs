@@ -335,3 +335,234 @@ test('card Mii imports require CSRF, retain raw data through edits, and can be r
   await f.request('/create', { method: 'POST', body: new URLSearchParams(fields) });
   assert.equal(f.state.pending.miiData, null);
 });
+
+test('validation errors retain new uploads and presets instead of older images', async (t) => {
+  const sharp = require('sharp');
+  const replacement = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#ff0000' } }).png().toBuffer();
+  const f = await fixture(t, readyCard());
+  const body = new FormData();
+  body.set('_csrf', 'test-token');
+  body.set('deliveryMethod', 'email');
+  body.set('senderName', '');
+  body.set('cardText', 'New message');
+  body.set('cardImage', new Blob([replacement], { type: 'image/png' }), 'new.png');
+  body.set('miiFile', new Blob([Buffer.alloc(96, 17)]), 'new.ffsd');
+  await f.request('/create', { method: 'POST', body });
+  assert.equal(f.state.pending.originalImage, replacement.toString('base64'));
+  assert.equal(f.state.pending.miiData, Buffer.alloc(96, 17).toString('base64'));
+  assert.equal(f.state.pending.generatedCard, undefined);
+
+  const directory = path.join(__dirname, '..', 'public', 'images', 'presets');
+  fs.mkdirSync(directory, { recursive: true });
+  const preset = path.join(directory, `validation-${process.pid}.png`);
+  fs.writeFileSync(preset, image);
+  t.after(() => fs.unlinkSync(preset));
+  body.delete('cardImage');
+  body.delete('miiFile');
+  body.set('presetImage', `/images/presets/${path.basename(preset)}`);
+  await f.request('/create', { method: 'POST', body });
+  assert.equal(f.state.pending.originalImage, image.toString('base64'));
+});
+
+test('removing a Mii from a Wii PictoCard stays removed after editing', async (t) => {
+  enableWii(t);
+  const previous = { ...readyCard(), miiData: Buffer.alloc(96, 19).toString('base64') };
+  const f = await fixture(t, previous);
+  const body = wiiBody('card');
+  body.set('cardMiiData', 'remove');
+  const response = await f.request('/create', { method: 'POST', body });
+  assert.equal(response.headers.get('location'), '/preview');
+  assert.equal(f.state.pending.miiData, null);
+  const edited = await f.request('/create', { method: 'POST', body: wiiBody('card') });
+  assert.equal(edited.headers.get('location'), '/preview');
+  assert.equal(f.state.pending.miiData, null);
+});
+
+test('Wii drafts retain omitted background and font preferences', async (t) => {
+  enableWii(t);
+  const f = await fixture(t, { ...readyCard(), cardBackground: 'dark', textColor: '#ff3344', fontFamily: 'splatfont2' });
+  await f.request('/create', { method: 'POST', body: wiiBody('none') });
+  assert.equal(f.state.pending.cardBackground, 'dark');
+  assert.equal(f.state.pending.textColor, '#ff3344');
+  assert.equal(f.state.pending.fontFamily, 'splatfont2');
+  await f.request('/create', { method: 'POST', body: wiiBody('card') });
+  assert.equal(f.state.pending.cardBackground, 'dark');
+});
+
+test('overlapping submissions cannot replace an in-flight draft', async (t) => {
+  const saved = activeConfig.moderationApiKey;
+  activeConfig.moderationApiKey = 'test-key';
+  t.after(() => { activeConfig.moderationApiKey = saved; mock.restoreAll(); });
+  let entered;
+  const started = new Promise((resolve) => { entered = resolve; });
+  let release;
+  const pause = new Promise((resolve) => { release = resolve; });
+  t.after(() => release());
+  mock.method(global, 'fetch', async (url) => {
+    assert.equal(String(url), 'https://api.openai.com/v1/moderations');
+    entered();
+    await pause;
+    return { ok: true, json: async () => ({ results: [{ flagged: false }] }) };
+  });
+  const f = await fixture(t, readyCard());
+  const fields = { _csrf: 'test-token', deliveryMethod: 'email', senderName: 'Alex', senderEmail: 'alex@example.com',
+    recipientEmail: 'first@example.com', cardText: 'First submission' };
+  const first = f.request('/create', { method: 'POST', body: new URLSearchParams(fields) });
+  await started;
+  const second = await f.request('/create', { method: 'POST', body: new URLSearchParams({ ...fields, recipientEmail: 'second@example.com' }) });
+  assert.equal(second.status, 409);
+  release();
+  assert.equal((await first).headers.get('location'), '/preview');
+  assert.equal(f.state.pending.recipientEmail, 'first@example.com');
+});
+
+test('preview work is bounded across requests and slots are released afterwards', async (t) => {
+  let entered;
+  const started = new Promise((resolve) => { entered = resolve; });
+  let release;
+  const pause = new Promise((resolve) => { release = resolve; });
+  let calls = 0;
+  mock.method(global, 'fetch', async () => {
+    if (++calls === 2) entered();
+    await pause;
+    return { ok: true, arrayBuffer: async () => image };
+  });
+  t.after(() => { release(); mock.restoreAll(); });
+  const f = await fixture(t);
+  const importMii = (byte) => f.request('/mii-import', { method: 'POST', body: new URLSearchParams({
+    _csrf: 'test-token', source: 'data', value: Buffer.alloc(96, byte).toString('base64')
+  }) });
+  const first = importMii(61);
+  const second = importMii(62);
+  await started;
+  const busy = await f.request('/card-preview', { method: 'POST', body: new URLSearchParams({ _csrf: 'test-token' }) });
+  assert.equal(busy.status, 429);
+  assert.match((await busy.json()).error, /busy/);
+  release();
+  assert.deepEqual((await Promise.all([first, second])).map((response) => response.status), [200, 200]);
+  const recovered = await f.request('/card-preview', { method: 'POST', body: new URLSearchParams({ _csrf: 'test-token' }) });
+  assert.equal(recovered.status, 200);
+});
+
+test('multipart preview uploads have an aggregate byte limit', async (t) => {
+  const f = await fixture(t);
+  const body = new FormData();
+  body.set('_csrf', 'test-token');
+  const file = Buffer.alloc(9 * 1024 * 1024);
+  for (const field of ['cardImage', 'wiiImage', 'miiFile']) {
+    body.set(field, new Blob([file], { type: 'image/png' }), `${field}.png`);
+  }
+  const response = await f.request('/card-preview', { method: 'POST', body });
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /upload/);
+});
+
+test('Mii service outages return a service error while invalid data stays an input error', async (t) => {
+  mock.method(global, 'fetch', async () => ({ ok: false, status: 503 }));
+  t.after(() => mock.restoreAll());
+  const f = await fixture(t);
+  const request = (value) => f.request('/mii-import', { method: 'POST', body: new URLSearchParams({ _csrf: 'test-token', source: 'data', value }) });
+  const outage = await request(Buffer.alloc(96, 91).toString('base64'));
+  assert.equal(outage.status, 503);
+  assert.match((await outage.json()).error, /rendering is unavailable/);
+  assert.equal((await request('00')).status, 422);
+});
+
+test('two Discord login flows retain separate one-time states', async (t) => {
+  const saved = activeConfig.discord;
+  activeConfig.discord = { enabled: true, clientId: 'test-id', clientSecret: 'test-secret', redirectUri: 'http://localhost/discord/callback' };
+  let requests = 0;
+  mock.method(global, 'fetch', async () => {
+    requests++;
+    return { ok: true, json: async () => ({ access_token: 'token', id: '123', username: 'alex' }) };
+  });
+  t.after(() => { activeConfig.discord = saved; mock.restoreAll(); });
+  const f = await fixture(t);
+  const states = [];
+  for (let i = 0; i < 2; i++) {
+    const response = await f.request('/discord');
+    states.push(new URL(response.headers.get('location')).searchParams.get('state'));
+  }
+  await f.request('/discord/callback?code=test-code&state=wrong');
+  for (const state of states) {
+    await f.request(`/discord/callback?code=test-code&state=${state}`);
+    assert.equal(f.state.discordUser.username, 'alex');
+  }
+  assert.equal(requests, 4);
+  await f.request(`/discord/callback?code=test-code&state=${states[0]}`);
+  assert.equal(requests, 4);
+});
+
+test('uncertain Wii delivery cannot resend the same pending card', async (t) => {
+  enableWii(t);
+  let requests = 0;
+  mock.method(global, 'fetch', async () => { requests++; return { ok: false, status: 503 }; });
+  t.after(() => mock.restoreAll());
+  const f = await fixture(t, { ...readyCard(), recipientWii: '5555666677778888', wii: { attach: 'none', mii: null, jpeg: null, letterhead: '' } });
+  const send = () => f.request('/verify', { method: 'POST', body: new URLSearchParams({ _csrf: 'test-token', retry: '1' }) });
+  assert.equal((await send()).headers.get('location'), '/preview');
+  assert.equal(f.state.pending.wiiDelivery, 'uncertain');
+  assert.equal(requests, 1);
+  await send();
+  assert.equal(requests, 1);
+  const preview = await (await f.request('/preview')).text();
+  assert.match(preview, /Check the Wii Message Board/);
+  assert.doesNotMatch(preview, /<form action="\/verify"/);
+});
+
+test('WC24 requests apply a deadline and preserve uncertain timeout outcomes', async (t) => {
+  enableWii(t);
+  const controller = new AbortController();
+  mock.method(AbortSignal, 'timeout', (duration) => { assert.ok(duration > 0 && duration <= 30_000); return controller.signal; });
+  mock.method(global, 'fetch', async (_url, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    setImmediate(() => controller.abort(new DOMException('Timed out', 'TimeoutError')));
+  }));
+  t.after(() => mock.restoreAll());
+  await assert.rejects(wc24.requestFriend('5555666677778888'), (error) => error.code === 'WC24_UNCERTAIN' && error.cause.name === 'TimeoutError');
+});
+
+test('overlapping Discord callbacks cannot restore consumed states in cloned sessions', { timeout: 5000 }, async (t) => {
+  const session = require('express-session');
+  const saved = activeConfig.discord;
+  activeConfig.discord = { enabled: true, clientId: 'test-id', clientSecret: 'test-secret', redirectUri: 'http://localhost/discord/callback' };
+  let release;
+  const pause = new Promise((resolve) => { release = resolve; });
+  let entered;
+  const started = new Promise((resolve) => { entered = resolve; });
+  let tokens = 0;
+  let requests = 0;
+  mock.method(global, 'fetch', async (url) => {
+    requests++;
+    if (String(url).endsWith('/oauth2/token') && ++tokens === 1) { entered(); await pause; }
+    return { ok: true, json: async () => ({ access_token: 'token', id: '123', username: 'alex' }) };
+  });
+  t.after(() => { release(); activeConfig.discord = saved; mock.restoreAll(); });
+  const app = express();
+  app.use(session({ secret: 'fixture-secret', resave: false, saveUninitialized: false }));
+  app.use(csrf());
+  app.use('/discord', discordRoutes);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  let cookie = '';
+  const request = async (url) => {
+    const response = await nativeFetch(base + url, { redirect: 'manual', headers: { Cookie: cookie } });
+    if (response.headers.get('set-cookie')) cookie = response.headers.get('set-cookie').split(';')[0];
+    return response;
+  };
+  const states = [];
+  for (let i = 0; i < 2; i++) {
+    const response = await request('/discord');
+    states.push(new URL(response.headers.get('location')).searchParams.get('state'));
+  }
+  const first = request(`/discord/callback?code=first&state=${states[0]}`);
+  await started;
+  await request(`/discord/callback?code=second&state=${states[1]}`);
+  release();
+  await first;
+  assert.equal(requests, 4);
+  for (const state of states) await request(`/discord/callback?code=replay&state=${state}`);
+  assert.equal(requests, 4);
+});

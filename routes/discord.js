@@ -3,6 +3,19 @@
 const express = require('express');
 const { randomBytes } = require('crypto');
 const router = express.Router();
+const pendingStates = new Map();
+const OAUTH_EXPIRY_MS = 10 * 60 * 1000;
+
+function activeStates(key) {
+  return (pendingStates.get(key) || []).filter((entry) => entry.expires > Date.now());
+}
+setInterval(() => {
+  for (const key of pendingStates.keys()) {
+    const states = activeStates(key);
+    if (states.length) pendingStates.set(key, states);
+    else pendingStates.delete(key);
+  }
+}, 60_000).unref();
 
 let config;
 try {
@@ -27,7 +40,11 @@ router.get('/', (req, res) => {
     return res.redirect('/?discord_disabled=1');
   }
   const state = randomBytes(24).toString('hex');
-  req.session.discordOAuthState = state;
+  const now = Date.now();
+  const key = req.sessionID || req.session;
+  const states = activeStates(key);
+  states.push({ value: state, expires: now + OAUTH_EXPIRY_MS });
+  pendingStates.set(key, states.slice(-8));
   // Redirect to Discord OAuth2 with identify scope to retrieve display name
   const params = new URLSearchParams({
     client_id: config.discord.clientId,
@@ -44,11 +61,14 @@ router.get('/callback', async (req, res) => {
   if (!discordEnabled()) return res.redirect('/');
 
   const { code, state } = req.query;
-  const expectedState = req.session.discordOAuthState;
-  delete req.session.discordOAuthState;
+  const key = req.sessionID || req.session;
+  const states = activeStates(key);
+  const expectedState = states.find((entry) => entry.value === state);
+  // Consume independently of session saves: concurrent callbacks must not restore a used state.
+  pendingStates.set(key, states.filter((entry) => entry.value !== state));
   if (
     typeof code !== 'string' || !code ||
-    typeof state !== 'string' || !expectedState || state !== expectedState
+    typeof state !== 'string' || !expectedState || state !== expectedState.value
   ) return res.redirect('/?discord_error=1');
 
   try {
@@ -96,6 +116,7 @@ router.get('/callback', async (req, res) => {
 
 // ── GET /discord/logout ───────────────────────────────────────────────────────
 router.get('/logout', (req, res) => {
+  pendingStates.delete(req.sessionID || req.session);
   delete req.session.discordUser;
   res.redirect('/');
 });

@@ -179,6 +179,7 @@
 
               <div class="field">
                 <label for="wiiMii">Mii Face (Optional)</label>
+                <span class="field-hint">Face previews send Mii appearance data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>.</span>
                 <input type="file" id="wiiMii" name="wiiMii" />
                 <span class="field-hint"
                   >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter. <%= pending && pending.wiiMiiData ? 'Leave empty to keep your current face.' : '' %></span
@@ -382,6 +383,7 @@
 
               <div class="field">
                 <label for="miiSource">Mii on the PictoCard</label>
+                <span class="field-hint">Loading or previewing a Mii sends its data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>. ID lookups also send the entered NNID or PNID.</span>
                 <select id="miiSource">
                   <option value="file">Mii file</option>
                   <option value="nnid">Nintendo Network ID</option>
@@ -479,7 +481,7 @@
         const showCard = !wii || attach === 'card';
         const backgroundGroup = document.getElementById('cardBackgroundGroup');
         backgroundGroup.style.display = showCard ? '' : 'none';
-        backgroundGroup.querySelectorAll('input').forEach((field) => { field.disabled = !showCard; });
+        backgroundGroup.querySelectorAll('input').forEach((field) => { field.disabled = false; });
         const imageGroup = document.getElementById('cardImageGroup');
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
@@ -491,7 +493,7 @@
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
         if (cardTextField) cardTextField.style.display = attach === 'card' ? '' : 'none';
-        for (const group of [imageGroup, fontRow, extras]) {
+        for (const group of [imageGroup, extras]) {
           if (group) group.querySelectorAll('input, select, textarea').forEach((field) => {
             field.disabled = !showCard;
           });

@@ -45,6 +45,7 @@
       <% } %>
 
       <div class="preview-actions">
+        <% if (!sendBlocked) { %>
         <% if (typeof sendError !== 'undefined' && sendError && canRetryDirectly) { %>
         <form action="/verify" method="POST" style="display: inline">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
@@ -62,6 +63,7 @@
           <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <button type="submit" class="btn btn-primary btn-lg">Verify &amp; Send 🎉</button>
         </form>
+        <% } %>
         <% } %>
         <a href="/" class="btn btn-secondary btn-lg">Edit Card</a>
       </div>
