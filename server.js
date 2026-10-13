@@ -23,6 +23,10 @@ const app = express();
 app.set('view engine', 'ejs');
 const viewsPath = path.join(__dirname, 'views');
 app.set('views', viewsPath);
+app.use((req, res, next) => {
+  res.locals.currentPath = req.path.replace(/\/+$/, '') || '/';
+  next();
+});
 
 // Verify views directory exists at startup
 if (!fs.existsSync(viewsPath)) {
