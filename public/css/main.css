@@ -391,8 +391,8 @@ code {
 .preset-details > summary { cursor: pointer; color: var(--accent); font-size: 15px; }
 .preset-details[open] .preset-gallery { margin-top: 12px; }
 .username-field { position: relative; }
-.username-prefix { position: absolute; top: 50%; left: 12px; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-.username-field input { padding-left: 31px; }
+.username-prefix { position: absolute; top: 50%; left: 12px; transform: translateY(calc(-50% + 1px)); font: 15px var(--font); color: var(--text-muted); pointer-events: none; }
+.username-field input[type='text'] { padding-left: 31px; }
 .form-foot { text-align: center; margin: 12px 0 0; font-size: 14px; color: var(--text-muted); }
 .card-form > .btn-primary {
   width: 100%;
