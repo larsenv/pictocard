@@ -997,6 +997,11 @@ a.tab-btn:hover {
   padding-top: 40px;
   border-top: 1px solid var(--hr);
 }
+@media (min-width: 701px) {
+  .faq {
+    margin-inline: -10px;
+  }
+}
 .faq h2 {
   margin: 0 0 20px;
   font-size: 1.05rem;
