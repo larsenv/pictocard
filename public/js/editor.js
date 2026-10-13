@@ -19,6 +19,10 @@
   let revision = 0;
   let running = false;
   let busyRetries = 0;
+  let controller;
+  const previews = new Map();
+  const previewMode = () => document.getElementById('deliveryMethod').value === 'wii' ? 'wii' : 'card';
+  let selectedMode = previewMode();
   const fieldValues = new WeakMap();
   const valueOf = (field) => field.type === 'file' ? field.files[0] : `${field.value}:${field.checked || false}`;
   for (const field of form.elements) {
@@ -142,20 +146,55 @@
   previewSize.observe(letter);
   image.addEventListener('load', alignPreviewGrid);
 
+  function showRenderedPreview(result) {
+    image.hidden = result.wii || !result.image;
+    if (result.image && !result.wii) image.src = result.image;
+    letter.hidden = !result.wii;
+    if (result.wii) document.dispatchEvent(new CustomEvent('wii-preview-update', { detail: result }));
+  }
+
+  function syncPreviewMode() {
+    const method = document.getElementById('deliveryMethod').value;
+    const mode = previewMode();
+    heading.textContent = mode === 'wii' ? 'Wii letter preview' : 'Live preview';
+    description.textContent = mode === 'wii'
+      ? form.elements.wiiAttach.value === 'none'
+        ? "This is the letter they'll receive. Nothing is sent until you confirm."
+        : 'Select the attachment to enlarge it. Select it again to return to the letter.'
+      : method === 'discord'
+        ? 'This is the image sent in the Discord message. Nothing is sent until you confirm.'
+        : "This is the card image they'll receive. You'll review everything before sending.";
+    if (mode !== selectedMode) {
+      selectedMode = mode;
+      controller?.abort();
+      if (previews.has(mode)) showRenderedPreview(previews.get(mode));
+      else image.hidden = letter.hidden = true;
+    }
+  }
+
+  function queuePreview(delay) {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; updatePreview(); }, delay);
+  }
+
   async function updatePreview() {
     if (running) return;
     running = true;
     const current = revision;
+    controller = new AbortController();
+    const signal = controller.signal;
+    preview.setAttribute('aria-busy', 'true');
     status.textContent = 'Updating preview…';
     status.classList.remove('preview-error');
     try {
-      let response = await fetch('/card-preview', { method: 'POST', body: new FormData(form) });
+      let response = await fetch('/card-preview', { method: 'POST', body: new FormData(form), signal });
       if (response.status === 403) {
-        const fresh = await fetch('/form-token');
+        const fresh = await fetch('/form-token', { signal });
         if (fresh.ok) {
           const token = await fresh.json();
+          if (current !== revision) return;
           form.elements._csrf.value = token.csrfToken;
-          response = await fetch('/card-preview', { method: 'POST', body: new FormData(form) });
+          response = await fetch('/card-preview', { method: 'POST', body: new FormData(form), signal });
         }
       }
       const result = response.headers.get('content-type')?.includes('application/json')
@@ -167,7 +206,7 @@
           status.classList.add('preview-error');
           if (busyRetries++ < 4) {
             const delay = Number(response.headers.get('Retry-After')) || 2;
-            timer = setTimeout(updatePreview, Math.min(60_000, Math.max(500, delay * 1000)));
+            queuePreview(Math.min(60_000, Math.max(500, delay * 1000)));
           }
           return;
         }
@@ -185,16 +224,8 @@
       busyRetries = 0;
       message.setCustomValidity('');
       cardMessage.setCustomValidity('');
-      image.hidden = result.wii || !result.image;
-      heading.textContent = result.wii ? 'Wii letter preview' : 'Live preview';
-      description.textContent = result.wii
-        ? 'Select the attachment to enlarge it. Select it again to return to the letter.'
-        : document.getElementById('deliveryMethod').value === 'discord'
-          ? 'This is the image sent in the Discord message. Nothing is sent until you confirm.'
-          : "This is the card image they'll receive. You'll review everything before sending.";
-      if (result.image && !result.wii) image.src = result.image;
-      letter.hidden = !result.wii;
-      if (result.wii) document.dispatchEvent(new CustomEvent('wii-preview-update', { detail: result }));
+      previews.set(result.wii ? 'wii' : 'card', result);
+      showRenderedPreview(result);
       status.textContent = result.needsImage ? 'Choose a picture to see your attachment.' : 'Preview is up to date.';
       if (result.native?.faceUnavailable) status.textContent += ' Face preview unavailable.';
       counter.textContent = `${message.value.length} / 500`;
@@ -207,22 +238,27 @@
       }
     } finally {
       running = false;
-      if (current !== revision) {
-        clearTimeout(timer);
-        timer = setTimeout(updatePreview, 250);
+      controller = null;
+      if (current === revision) {
+        preview.setAttribute('aria-busy', 'false');
+        status.classList.remove('preview-pending');
       }
+      if (current !== revision && !timer) queuePreview(0);
     }
   }
 
-  function schedulePreview() {
+  function schedulePreview(delay = 0) {
     busyRetries = 0;
     revision++;
-    clearTimeout(timer);
+    syncPreviewMode();
     status.textContent = 'Updating preview…';
+    status.classList.remove('preview-error');
+    status.classList.toggle('preview-pending', image.hidden && letter.hidden);
+    preview.setAttribute('aria-busy', 'true');
     message.setCustomValidity('');
     cardMessage.setCustomValidity('');
     counter.textContent = `${message.value.length} / 500`;
-    timer = setTimeout(updatePreview, 400);
+    queuePreview(delay);
   }
   function fieldChanged(event) {
     const field = event.target;
@@ -248,12 +284,14 @@
         fieldValues.set(color, valueOf(color));
       }
     }
-    schedulePreview();
+    const typing = event.type === 'input' && ['text', 'textarea', 'color'].includes(field.type);
+    schedulePreview(typing ? 400 : 0);
   }
   form.addEventListener('input', fieldChanged);
   form.addEventListener('change', fieldChanged);
   form.addEventListener('click', (event) => {
-    if (event.target.closest('.tab-btn')) schedulePreview();
+    if (event.target.closest('#tabEmail, #tabDiscord, #tabWii')) schedulePreview();
   });
+  syncPreviewMode();
   updatePreview();
 })();

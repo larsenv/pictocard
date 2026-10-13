@@ -3,6 +3,7 @@
 // Builds the Wii letterhead gallery from RiiConnect24/WMB-Letterhead.
 //
 //   node scripts/build-letterheads.js <path-to-WMB-Letterhead> [--all] [--default <img dir>]
+// Add --native for live letter artwork; --default must point to the original Wii Menu tiles.
 //
 // Uses nintoolbox (wszst + wimgt on PATH) to unpack each .arc and decode its
 // nine letter tiles, assembles them into the 512x376 letterhead, and puts the
@@ -150,14 +151,7 @@ async function build(arcPath, group, name) {
     );
     console.log('ok   default');
   }
-  if (NATIVE) {
-    const original = path.join(ROOT, 'public', 'images', 'letterheads', 'default.png');
-    // The default has no archive here. Restore the paper under its gallery-only envelope.
-    const patch = await sharp(original).extract({ left: 160, top: 273, width: 32, height: 103 })
-      .resize(144, 103, { fit: 'fill', kernel: 'nearest' }).png().toBuffer();
-    await sharp(original).composite([{ input: patch, left: 8, top: 273 }])
-      .toFile(path.join(PREVIEW_DIR, 'default.png'));
-  } else {
+  if (!NATIVE) {
     fs.writeFileSync(path.join(ARC_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   }
   console.log(`${manifest.length} letterheads`);

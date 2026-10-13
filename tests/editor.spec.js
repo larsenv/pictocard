@@ -4,6 +4,88 @@ import sharp from 'sharp';
 
 const image = path.resolve('public/images/logo.png');
 
+for (const width of [390, 1440]) {
+  test(`preview mode and guidance switch immediately while an older render is pending (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    if (width === 390) await page.locator('#openPreview').click();
+    const card = await page.locator('#liveCardImage').getAttribute('src');
+    let release;
+    let requested;
+    let delayWii = true;
+    const held = new Promise((resolve) => { release = resolve; });
+    const seen = new Promise((resolve) => { requested = resolve; });
+    await page.route('**/card-preview', async (route) => {
+      if (delayWii && route.request().postDataBuffer().includes(Buffer.from('name="deliveryMethod"\r\n\r\nwii'))) {
+        delayWii = false;
+        requested();
+        await held;
+        await route.abort().catch(() => {});
+      } else await route.continue();
+    });
+    await page.locator('#tabWii').click();
+    await expect(page.locator('#previewHeading')).toHaveText('Wii letter preview');
+    await expect(page.locator('#previewDescription')).toContainText("This is the letter they'll receive.");
+    await expect(page.locator('#liveCardImage')).toBeHidden();
+    await expect(page.locator('#previewStatus')).toBeVisible();
+    await seen;
+    await page.locator('#tabEmail').click();
+    await expect(page.locator('#previewHeading')).toHaveText('Live preview');
+    await expect(page.locator('#previewDescription')).toContainText("This is the card image they'll receive.");
+    await expect(page.locator('#liveCardImage')).toBeVisible();
+    await expect(page.locator('#liveCardImage')).toHaveAttribute('src', card);
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    release();
+    await page.locator('#tabWii').click();
+    await expect(page.locator('#liveLetterhead')).toBeVisible();
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    await page.locator('input[name="wiiAttach"][value="card"]').check();
+    await expect(page.locator('#previewDescription')).toContainText('Select the attachment to enlarge it.');
+  });
+}
+
+test('Wii attachment collapse matches the thumbnail without moving the letter', async ({ page }) => {
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    await page.locator('#tabWii').click();
+    await page.locator('input[name="wiiAttach"][value="card"]').check();
+    await page.setInputFiles('#cardImage', image);
+    await page.fill('#cardText', 'One\nTwo\nThree\nFour\nFive');
+    await expect(page.locator('#previewStatus')).toHaveText('Preview is up to date.');
+    if (width === 390) await page.locator('#openPreview').click();
+    const stage = page.locator('.wii-preview-stage');
+    const thumbnail = await page.locator('#wiiAttachmentTarget').boundingBox();
+    const letter = await stage.boundingBox();
+    await page.locator('#wiiAttachmentTarget').click();
+    await expect(page.locator('#wiiExpanded')).toBeFocused();
+    expect(await stage.boundingBox()).toEqual(letter);
+    const end = await page.locator('#wiiExpanded').evaluate((el) => {
+      el.click();
+      const animation = el.getAnimations()[0];
+      animation.pause();
+      animation.currentTime = 239.999;
+      const box = el.getBoundingClientRect();
+      const image = el.querySelector('img').getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height,
+        imageX: image.x, imageY: image.y, imageWidth: image.width, imageHeight: image.height };
+    });
+    for (const key of ['x', 'y', 'width', 'height']) {
+      expect(Math.abs(end[key] - thumbnail[key])).toBeLessThan(0.1);
+    }
+    const scale = letter.width / 512;
+    expect(Math.abs(end.imageX - thumbnail.x - 4 * scale)).toBeLessThan(0.1);
+    expect(Math.abs(end.imageY - thumbnail.y - 4 * scale)).toBeLessThan(0.1);
+    expect(Math.abs(end.imageWidth - thumbnail.width + 8 * scale)).toBeLessThan(0.1);
+    expect(Math.abs(end.imageHeight - thumbnail.height + 18 * scale)).toBeLessThan(0.1);
+    await page.locator('#wiiExpanded').evaluate((el) => el.getAnimations()[0].play());
+    await expect(page.locator('#wiiExpanded')).toBeHidden();
+    expect(await stage.boundingBox()).toEqual(letter);
+    await expect(page.locator('#wiiAttachmentTarget')).toBeFocused();
+  }
+});
+
 test('text backgrounds apply to cards and Wii attachments without changing custom colors', async ({ page }) => {
   await page.goto('/');
   await page.locator('input[name="cardBackground"][value="dark"]').check();
