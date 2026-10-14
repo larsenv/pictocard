@@ -84,6 +84,11 @@ app.use((_req, res, next) => {
   next();
 });
 
+// ── JSON API (Wii client) ────────────────────────────────────────────────────
+// Mounted before the form parsers, sessions and CSRF: it has its own JSON
+// parser and uses proof-of-work challenges instead of cookies and captchas.
+app.use('/api/v1', require('./routes/api'));
+
 // ── Body parsers ─────────────────────────────────────────────────────────────
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -112,6 +117,7 @@ app.use(csrf({ multipartPaths: ['/create', '/card-preview', '/mii-import'] }));
 const SITEMAP_PAGES = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
   { path: '/wii', changefreq: 'monthly', priority: '0.7' },
+  { path: '/wii-app', changefreq: 'monthly', priority: '0.7' },
   { path: '/optout', changefreq: 'monthly', priority: '0.3' },
   { path: '/tos', changefreq: 'monthly', priority: '0.3' },
   { path: '/privacy', changefreq: 'monthly', priority: '0.3' }
@@ -123,7 +129,7 @@ const AI_CRAWLERS = [
 
 app.get('/robots.txt', (_req, res) => {
   const lines = ['User-agent: *'];
-  for (const p of ['/preview', '/verify', '/discord', '/create', '/verify-request', '/card-preview', '/mii-import', '/image-import']) {
+  for (const p of ['/api/', '/preview', '/verify', '/discord', '/create', '/verify-request', '/card-preview', '/mii-import', '/image-import']) {
     lines.push(`Disallow: ${p}`);
   }
   lines.push('Allow: /', '', '# AI search and answer engines are welcome to read and cite the public pages');

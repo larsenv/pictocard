@@ -84,31 +84,7 @@ function hashEmail(email) {
   return crypto.createHash('sha512').update(normalized).digest('hex');
 }
 
-/**
- * Check card text against the OpenAI Moderation API.
- * Returns true if the text is flagged as inappropriate.
- * Silently returns false (never blocks) if the API key is not configured or the request fails.
- * @param {string} text
- * @returns {Promise<boolean>}
- */
-async function checkContentModeration(text) {
-  if (!config.moderationApiKey || !text || !text.trim()) return false;
-  try {
-    const response = await fetch('https://api.openai.com/v1/moderations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.moderationApiKey}`
-      },
-      body: JSON.stringify({ input: text.trim() })
-    });
-    if (!response.ok) return false;
-    const data = await response.json();
-    return !!(data.results && data.results[0] && data.results[0].flagged);
-  } catch {
-    return false;
-  }
-}
+const { checkContentModeration } = require('../lib/moderation');
 
 const { emailOptOuts, wiiOptOuts } = require('../lib/optouts');
 
@@ -208,6 +184,10 @@ const FAQ = [
   {
     "q": "Is PictoCard an alternative to Apple iCards?",
     "a": "PictoCard is inspired by the simplicity of Apple's iCards: your own image, your own text, beautiful fonts and no clutter, delivered by email, Discord or Wii."
+  },
+  {
+    "q": "Can I send PictoCards from my Wii?",
+    "a": "Yes. PictoCard for Wii is a free Homebrew Channel app. Pick any photo from your SD card, add a Mii from your Wii, and send the card by email or to a Wii Message Board. Download it from the PictoCard for Wii page."
   },
   {
     "q": "How do I stop receiving PictoCards?",
@@ -1154,6 +1134,21 @@ router.post('/send', async (req, res) => {
   const pending = req.session.pending;
   if (!pending || !(pending.generatedCard || pending.wii)) return res.redirect('/');
   res.redirect('/verify');
+});
+
+// ── GET /wii-app ──────────────────────────────────────────────────────────────
+// The Homebrew Channel app (github.com/larsenv/PictoCard-Wii). Downloads come
+// from the repository's rolling "latest" release, which its CI publishes.
+router.get('/wii-app', (_req, res) => {
+  const app = config.wiiApp || {};
+  const repo = app.repo || 'https://github.com/larsenv/PictoCard-Wii';
+  res.render('wii-app', {
+    domain: config.domain,
+    version: app.version || '1.0.0',
+    sourceUrl: repo,
+    releasesUrl: `${repo}/releases`,
+    downloadUrl: app.downloadUrl || `${repo}/releases/latest/download/PictoCard-Wii.zip`
+  });
 });
 
 // ── GET /tos ──────────────────────────────────────────────────────────────────
