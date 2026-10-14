@@ -1219,3 +1219,35 @@ input[type='url']:focus {
 @media (max-width: 800px) {
   .wii-app-layout, .wii-app-features { grid-template-columns: 1fr; }
 }
+
+/* ── Doodle pad ── */
+.picture-upload-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.doodle-dialog {
+  width: min(640px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  margin: auto;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+.doodle-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+.doodle-toolbar { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.doodle-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.doodle-swatch {
+  width: 28px; height: 28px; padding: 0;
+  border: 2px solid var(--text); border-radius: 4px; cursor: pointer;
+}
+.doodle-size {
+  width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid transparent; border-radius: 4px; background: var(--secondary); cursor: pointer;
+}
+.doodle-size span { display: block; border-radius: 50%; background: var(--text); }
+.doodle-swatch.is-active, .doodle-size.is-active, .doodle-group .btn.is-active { outline: 3px solid var(--accent); outline-offset: 1px; }
+#doodleCanvas {
+  display: block; width: 100%; height: auto; aspect-ratio: 12 / 7;
+  border: 1px solid var(--text); background: #fff; touch-action: none; cursor: crosshair;
+}
+.doodle-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }

@@ -212,6 +212,7 @@
                     <button type="button" class="btn btn-secondary" id="importWiiImage">Import</button>
                   </div>
                   <span class="field-hint" id="wiiImageUrlStatus" role="status" aria-live="polite">Paste a direct link to a JPEG, PNG, GIF or WebP image.</span>
+                  <button type="button" class="btn btn-secondary" data-doodle-target="wiiImage">Or draw a doodle</button>
                 </div>
                 <div id="wiiCardTextField" style="display: none">
                   <label for="wiiCardText">Text on the PictoCard (Optional)</label>
@@ -312,7 +313,10 @@
                   accept="image/jpeg,image/png,image/gif,image/webp" hidden />
                 <strong id="pictureFileName"><%= pending && pending.originalImage ? 'Current picture' : 'Choose a picture' %></strong>
                 <p class="field-hint">JPEG, PNG, GIF or WebP - max 10 MB.</p>
-                <button type="button" class="btn btn-secondary" id="choosePicture"><%= pending && pending.originalImage ? 'Change picture' : 'Upload picture' %></button>
+                <div class="picture-upload-actions">
+                  <button type="button" class="btn btn-secondary" id="choosePicture"><%= pending && pending.originalImage ? 'Change picture' : 'Upload picture' %></button>
+                  <button type="button" class="btn btn-secondary" data-doodle-target="cardImage">Draw a doodle</button>
+                </div>
               </div>
             </div>
 
@@ -634,8 +638,28 @@
       })();
 
     </script>
+    <dialog id="doodleDialog" class="doodle-dialog" aria-labelledby="doodleHeading">
+      <h2 id="doodleHeading" class="panel-title">Draw a doodle</h2>
+      <div class="doodle-toolbar">
+        <div id="doodleColors" class="doodle-group" role="group" aria-label="Colours"></div>
+        <div id="doodleSizes" class="doodle-group" role="group" aria-label="Brush size"></div>
+        <div class="doodle-group">
+          <button type="button" class="btn btn-secondary is-active" data-tool="draw">Draw</button>
+          <button type="button" class="btn btn-secondary" data-tool="fill">Fill</button>
+          <button type="button" class="btn btn-secondary" data-tool="eraser">Erase</button>
+          <button type="button" class="btn btn-secondary" id="doodleUndo">Undo</button>
+          <button type="button" class="btn btn-secondary" id="doodleClear">Clear</button>
+        </div>
+      </div>
+      <canvas id="doodleCanvas" width="600" height="350" aria-label="Doodle canvas"></canvas>
+      <div class="doodle-actions">
+        <button type="button" class="btn btn-secondary" id="doodleCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="doodleUse">Use doodle</button>
+      </div>
+    </dialog>
     <script src="/js/wii-preview.js" defer></script>
     <script src="/js/mii-input.js" defer></script>
     <script src="/js/editor.js" defer></script>
+    <script src="/js/doodle.js" defer></script>
   </body>
 </html>
