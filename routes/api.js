@@ -302,6 +302,41 @@ router.post('/mii-faces', limiter(60_000, 40, 'Too many Mii previews. Please wai
   res.json({ faces });
 }));
 
+// ── POST /api/v1/letterhead-sheet ─────────────────────────────────────────────
+// Every letterhead preview as one JPEG grid (in /meta order), so a client can
+// show a gallery with a single request. Sheets are cached per size.
+const sheetCache = new Map();
+async function letterheadSheet(w, h, cols) {
+  const key = `${w}x${h}x${cols}`;
+  if (sheetCache.has(key)) return sheetCache.get(key);
+  const ids = wiiMail.letterheadGroups().flatMap((g) => g.items.map((l) => l.id));
+  const rows = Math.max(1, Math.ceil(ids.length / cols));
+  const tiles = await Promise.all(ids.map(async (id, i) => {
+    const file = require('path').join(__dirname, '..', 'public', 'images', 'letterheads', `${id}.png`);
+    try {
+      const input = await sharp(file).resize(w, h, { fit: 'cover', position: 'top' }).png().toBuffer();
+      return { input, left: (i % cols) * w, top: Math.floor(i / cols) * h };
+    } catch {
+      return null;
+    }
+  }));
+  const image = await sharp({ create: { width: cols * w, height: rows * h, channels: 3, background: '#ffffff' } })
+    .composite(tiles.filter(Boolean))
+    .jpeg({ quality: 82, progressive: false, chromaSubsampling: '4:2:0' })
+    .toBuffer();
+  const sheet = { w, h, cols, ids, image: image.toString('base64') };
+  sheetCache.set(key, sheet);
+  return sheet;
+}
+
+router.post('/letterhead-sheet', limiter(60_000, 10, 'Too many requests. Please wait a minute.'), handle(async (req, res) => {
+  const b = req.body || {};
+  const w = Math.min(200, Math.max(40, Math.round(Number(b.width) || 120)));
+  const h = Math.min(160, Math.max(30, Math.round(Number(b.height) || 88)));
+  const cols = Math.min(10, Math.max(1, Math.round(Number(b.cols) || 8)));
+  res.json(await letterheadSheet(w, h, cols));
+}));
+
 // ── POST /api/v1/send ─────────────────────────────────────────────────────────
 const sendIpLimiter = limiter(WINDOW, 10, 'Too many attempts. Please wait a few minutes and try again.');
 const recipientKey = (req) => {
