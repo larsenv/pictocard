@@ -151,3 +151,14 @@ test('a doodle card is the drawing alone, without the PictoCard layout', async (
   assert.equal(status, 422);
   assert.match(body.error, /draw a doodle/);
 });
+
+test('Wii mail needs a message unless the app sends a picture on its own', async () => {
+  const sharp = require('sharp');
+  const wiiMail = require('../lib/wiiMail');
+  const cfg = { sender: '1111222233334444', server: 'example.invalid' };
+  const jpeg = await wiiMail.toBaselineJpeg(await sharp({ create: { width: 64, height: 48, channels: 3, background: '#336699' } }).png().toBuffer());
+  const base = { recipient: '5555666677778888', senderName: 'Wii', jpeg };
+  assert.throws(() => wiiMail.buildWiiMail(cfg, { ...base, text: '' }), /Message text is required/);
+  assert.ok(wiiMail.buildWiiMail(cfg, { ...base, text: '', pictureOnly: true }));
+  assert.throws(() => wiiMail.buildWiiMail(cfg, { recipient: base.recipient, text: '', pictureOnly: true }), /Message text is required/);
+});

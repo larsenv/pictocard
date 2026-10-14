@@ -23,7 +23,7 @@
       <section class="hero">
         <h1>Send a PictoCard!</h1>
         <p class="hero-sub">Create a personalized greeting card and send it by email or on Discord. Or send a special note to a Wii Message Board with WiiLink!</p>
-        <p class="hero-badge"><a href="/wii-app"><span class="hero-badge-tag">New</span> Send PictoCards from your Wii with PictoCard for Wii &rarr;</a></p>
+        <p class="hero-badge"><a href="/wii-app">Send PictoCards from your Wii with PictoCard for Wii &rarr;</a></p>
       </section>
 
       <div class="editor-layout">
@@ -183,6 +183,9 @@
                 <label for="wiiMii">Mii Face (Optional)</label>
                 <span class="field-hint">Face previews send Mii appearance data to <a href="https://mii-unsecure.ariankordi.net/" target="_blank" rel="noopener">Arian Kordi's renderer</a>.</span>
                 <input type="file" id="wiiMii" name="wiiMii" />
+                <div class="mii-result" id="wiiMiiResult" hidden>
+                  <img id="wiiMiiThumbnail" alt="Your Mii face" width="64" height="64" />
+                </div>
                 <span class="field-hint"
                   >A Wii Mii file (74 bytes, or 76 with the checksum), sent as your face on the letter. <%= pending && pending.wiiMiiData ? 'Leave empty to keep your current face.' : '' %></span
                 >
@@ -687,6 +690,7 @@
     </dialog>
     <script src="/js/wii-preview.js" defer></script>
     <script src="/js/mii-input.js" defer></script>
+    <script src="/js/wii-mii-face.js" defer></script>
     <script src="/js/editor.js" defer></script>
     <script src="/js/doodle.js" defer></script>
   </body>

@@ -18,7 +18,7 @@ const wiiMail = require('../lib/wiiMail');
 const wc24 = require('../lib/wc24');
 const { generateCard } = require('../lib/cardGenerator');
 const { renderWiiLetter } = require('../lib/wiiPreview');
-const { EXPRESSIONS, EXPRESSION_GROUPS, validateMiiData } = require('../lib/miiAssets');
+const { EXPRESSIONS, EXPRESSION_GROUPS, validateMiiData, renderMiiImage } = require('../lib/miiAssets');
 const { renderWork, startRender, finishRender } = require('../lib/renderWork');
 const { emailOptOuts, wiiOptOuts } = require('../lib/optouts');
 const { checkContentModeration } = require('../lib/moderation');
@@ -284,6 +284,24 @@ router.post('/preview', limiter(60_000, 30, 'Preview updates are paused. Try aga
     }
   }));
 
+// ── POST /api/v1/mii-faces ────────────────────────────────────────────────────
+// Rendered faces for a list of Miis (Arian Kordi's renderer), so a client can
+// show them in its Mii picker. A face that cannot be rendered comes back null.
+const MAX_FACES = 16;
+router.post('/mii-faces', limiter(60_000, 40, 'Too many Mii previews. Please wait a minute.'), handle(async (req, res) => {
+  const list = Array.isArray(req.body && req.body.miis) ? req.body.miis.slice(0, MAX_FACES) : [];
+  const size = Math.min(96, Math.max(24, Number(req.body && req.body.size) || 48));
+  const faces = await Promise.all(list.map(async (value) => {
+    try {
+      const image = await renderMiiImage(validateMiiData(decodeBase64(value, 'Mii')), size);
+      return image.toString('base64');
+    } catch {
+      return null;
+    }
+  }));
+  res.json({ faces });
+}));
+
 // ── POST /api/v1/send ─────────────────────────────────────────────────────────
 const sendIpLimiter = limiter(WINDOW, 10, 'Too many attempts. Please wait a few minutes and try again.');
 const recipientKey = (req) => {
@@ -348,7 +366,9 @@ async function sendWii(req, res, draft, body) {
   const recipient = digits(body.recipientWii);
   if (!wc24.isFriendCode(recipient)) throw new ApiError(422, 'Enter the 16-digit Wii Number.');
   if (!wc24.isValidWiiNumber(recipient)) throw new ApiError(422, "That doesn't look like a valid Wii Number. Please check it for typos.");
-  if (!draft.cardText.trim()) throw new ApiError(422, 'A message is required for Wii mail.');
+  // The Wii app may send a picture on its own; the website always asks for a message.
+  const pictureOnly = draft.wiiAttach === 'image' && !!draft.image && !draft.cardText.trim();
+  if (!draft.cardText.trim() && !pictureOnly) throw new ApiError(422, 'A message is required for Wii mail.');
   if (draft.wiiAttach === 'image' && !draft.image) throw new ApiError(422, 'Please choose a picture to attach.');
   if (draft.wiiAttach === 'card' && !draft.image) {
     throw new ApiError(422, 'Please choose a picture for the PictoCard.');
@@ -363,6 +383,7 @@ async function sendWii(req, res, draft, body) {
       recipient,
       senderName,
       text: draft.cardText,
+      pictureOnly,
       mii: draft.wiiMii,
       jpeg,
       letterheadArc: draft.letterhead ? wiiMail.readLetterheadArc(draft.letterhead) : null

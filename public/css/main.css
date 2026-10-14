@@ -1254,3 +1254,7 @@ input[type='url']:focus {
 
 [data-photo-only][hidden] { display: none !important; }
 #cardTypeField { margin-bottom: 12px; }
+
+.wii-app-shot img { border-width: 4px; border-style: solid; border-color: var(--accent); }
+#wiiMiiResult { margin-top: 8px; }
+#wiiMiiResult[hidden] { display: none; }
