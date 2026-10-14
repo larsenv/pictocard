@@ -40,6 +40,7 @@ async function fixture(t, pending = null) {
   app.use(express.json());
   app.use((req, res, next) => {
     req.session = state;
+    res.locals.nonce = 'test-nonce';
     next();
   });
   app.use(csrf({ multipartPaths: ['/create', '/card-preview', '/mii-import'] }));
