@@ -90,6 +90,7 @@ app.use((_req, res, next) => {
 // ── JSON API (Wii client) ────────────────────────────────────────────────────
 // Mounted before the form parsers, sessions and CSRF: it has its own JSON
 // parser and uses proof-of-work challenges instead of cookies and captchas.
+app.use('/api/v1/pictochat', require('./routes/pictochat').api);
 app.use('/api/v1', require('./routes/api'));
 
 // ── Body parsers ─────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ const AI_CRAWLERS = [
 
 app.get('/robots.txt', (_req, res) => {
   const lines = ['User-agent: *'];
-  for (const p of ['/api/', '/preview', '/verify', '/discord', '/create', '/verify-request', '/card-preview', '/mii-import', '/image-import']) {
+  for (const p of ['/api/', '/preview', '/verify', '/discord', '/create', '/verify-request', '/card-preview', '/mii-import', '/image-import', '/pictochat']) {
     lines.push(`Disallow: ${p}`);
   }
   lines.push('Allow: /', '', '# AI search and answer engines are welcome to read and cite the public pages');
@@ -161,6 +162,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', require('./routes/index'));
 app.use('/discord', require('./routes/discord'));
 app.use('/optout', require('./routes/optout'));
+app.use('/pictochat', require('./routes/pictochat').page);
 app.use('/wii', require('./routes/wii'));
 
 // ── 404 ──────────────────────────────────────────────────────────────────────

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('partials/head', {
+      metaDescription: 'Pair PictoChat for Wii with PictoChat Online: solve the captcha here and your Wii joins the chat.',
+      ogTitle: 'PictoChat for Wii - Pair your Wii',
+      ogDescription: 'Solve the PictoChat Online captcha for your Wii',
+      ogUrl: domain + '/pictochat',
+      canonicalUrl: domain + '/pictochat',
+      metaRobots: 'noindex'
+    }) %>
+  </head>
+  <body>
+    <%- include('partials/header') %>
+
+    <main class="container container-narrow">
+      <section class="hero">
+        <h1>Pair PictoChat for Wii</h1>
+        <p class="hero-sub">
+          <a href="https://pict.chat">PictoChat Online</a> asks everyone to solve a captcha before
+          joining, and a Wii can't show one. Solve it here and your Wii joins the chat.
+        </p>
+      </section>
+
+      <% if (expired) { %>
+      <div class="alert alert-error">That code has expired or doesn't exist. Get a new one on your Wii.</div>
+      <% } %>
+
+      <% if (code) { %>
+      <div class="card-form verify-form" id="pairForm">
+        <div class="field">
+          <label>Code shown on your Wii</label>
+          <input type="text" class="code-input" value="<%= code %>" readonly />
+        </div>
+        <div class="field">
+          <div id="captcha"></div>
+        </div>
+        <div class="alert" id="pairStatus" hidden></div>
+      </div>
+      <% } else { %>
+      <form action="/pictochat" method="GET" class="card-form verify-form">
+        <div class="field">
+          <label for="code">Code shown on your Wii</label>
+          <input type="text" id="code" name="code" class="code-input" maxlength="6" autocomplete="off"
+                 autocapitalize="characters" spellcheck="false" required />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Continue</button>
+        </div>
+      </form>
+      <% } %>
+
+      <aside class="wiilink-notice">
+        <h3>Before you chat</h3>
+        <p>
+          PictoChat Online is run by ayunami2000, not PictoCard. Its public rooms are public and logged,
+          and flagged messages are reviewed by its moderators. Don't share private information.
+        </p>
+      </aside>
+    </main>
+
+    <%- include('partials/footer') %>
+    <% if (code) { %>
+    <script nonce="<%= nonce %>">
+      (function () {
+        var status = document.getElementById('pairStatus');
+        function show(text, ok) {
+          status.hidden = false;
+          status.className = 'alert ' + (ok ? 'alert-success' : 'alert-error');
+          status.textContent = text;
+        }
+        window.pictochatCaptchaReady = function () {
+          hcaptcha.render('captcha', {
+            sitekey: <%- JSON.stringify(siteKey) %>,
+            theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+            callback: function (token) {
+              show('Sending to your Wii...', true);
+              fetch('/api/v1/pictochat/pair/<%= code %>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+              }).then(function (r) {
+                return r.json().then(function (body) { return { ok: r.ok, body: body }; });
+              }).then(function (r) {
+                if (r.ok) show('Done! Your Wii is joining PictoChat now. You can close this page.', true);
+                else show(r.body.error || 'Something went wrong. Please try again.', false);
+              }).catch(function () {
+                show('Could not reach PictoCard. Check your connection and try again.', false);
+              });
+            },
+            'expired-callback': function () { show('The captcha expired. Please solve it again.', false); },
+            'error-callback': function () { show('The captcha could not load. Please reload the page.', false); }
+          });
+        };
+      })();
+    </script>
+    <script src="https://js.hcaptcha.com/1/api.js?render=explicit&onload=pictochatCaptchaReady" async defer></script>
+    <% } %>
+  </body>
+</html>
