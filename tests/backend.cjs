@@ -138,7 +138,7 @@ function enableWii(t) {
 function wiiBody(attach, text = 'Hello Wii') {
   const body = new FormData();
   for (const [key, value] of Object.entries({
-    _csrf: 'test-token', deliveryMethod: 'wii', recipientWii: '5555666677778888',
+    _csrf: 'test-token', deliveryMethod: 'wii', recipientWii: '4206313713382912',
     cardText: text, wiiCardText: 'Separate card text', wiiAttach: attach, letterhead: 'and-kensaku'
   })) body.append(key, value);
   return body;
@@ -302,7 +302,7 @@ test('a rejected Wii friend request is never recorded as sent', async (t) => {
     ok: true,
     arrayBuffer: async () => Buffer.from('cd=100\ncd1=200\nmsg1=Rejected\n')
   }));
-  await assert.rejects(wc24.requestFriend('5555666677778888'), /Rejected/);
+  await assert.rejects(wc24.requestFriend('4206313713382912'), /Rejected/);
   assert.equal(writes, 0);
 });
 
@@ -498,7 +498,7 @@ test('uncertain Wii delivery cannot resend the same pending card', async (t) => 
   let requests = 0;
   mock.method(global, 'fetch', async () => { requests++; return { ok: false, status: 503 }; });
   t.after(() => mock.restoreAll());
-  const f = await fixture(t, { ...readyCard(), recipientWii: '5555666677778888', wii: { attach: 'none', mii: null, jpeg: null, letterhead: '' } });
+  const f = await fixture(t, { ...readyCard(), recipientWii: '4206313713382912', wii: { attach: 'none', mii: null, jpeg: null, letterhead: '' } });
   const send = () => f.request('/verify', { method: 'POST', body: new URLSearchParams({ _csrf: 'test-token', retry: '1' }) });
   assert.equal((await send()).headers.get('location'), '/preview');
   assert.equal(f.state.pending.wiiDelivery, 'uncertain');
@@ -519,7 +519,7 @@ test('WC24 requests apply a deadline and preserve uncertain timeout outcomes', a
     setImmediate(() => controller.abort(new DOMException('Timed out', 'TimeoutError')));
   }));
   t.after(() => mock.restoreAll());
-  await assert.rejects(wc24.requestFriend('5555666677778888'), (error) => error.code === 'WC24_UNCERTAIN' && error.cause.name === 'TimeoutError');
+  await assert.rejects(wc24.requestFriend('4206313713382912'), (error) => error.code === 'WC24_UNCERTAIN' && error.cause.name === 'TimeoutError');
 });
 
 test('overlapping Discord callbacks cannot restore consumed states in cloned sessions', { timeout: 5000 }, async (t) => {

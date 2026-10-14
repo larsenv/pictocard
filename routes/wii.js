@@ -4,7 +4,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const { verifyTurnstile, siteKey } = require('../lib/turnstile');
-const { requestFriend, wc24Config, isFriendCode } = require('../lib/wc24');
+const { requestFriend, wc24Config, isFriendCode, isValidWiiNumber } = require('../lib/wc24');
 let config;
 try {
   config = require('../config');
@@ -45,6 +45,7 @@ router.post('/', limiter, async (req, res) => {
   if (!isFriendCode(code)) {
     return render(res, { error: 'Enter your 16-digit Wii Number.' });
   }
+  if (!isValidWiiNumber(code)) return render(res, { error: "That doesn't look like a valid Wii Number. Please check it for typos." });
   if (!(await verifyTurnstile(body['cf-turnstile-response'], req.ip))) {
     return render(res, { error: 'Captcha verification failed. Please try again.' });
   }

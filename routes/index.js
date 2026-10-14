@@ -52,7 +52,7 @@ function miiExpressionOf(req) {
 }
 const wiiMail = require('../lib/wiiMail');
 const { renderWiiLetter } = require('../lib/wiiPreview');
-const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode } = require('../lib/wc24');
+const { sendWiiMail, sendText: sendWiiText, wc24Config, isFriendCode, isValidWiiNumber } = require('../lib/wc24');
 const { verifyTurnstile, siteKey: turnstileSiteKey } = require('../lib/turnstile');
 const { isVerified: isEmailVerified, markVerified: markEmailVerified } = require('../lib/verifiedEmails');
 const {
@@ -732,6 +732,7 @@ router.post(
       if (usingWii) {
         if (!wc24Config()) return redirectWithError("Wii delivery isn't set up yet. Please check back soon.");
         if (!isFriendCode(wiiCode)) return redirectWithError('Enter the 16-digit Wii Number.');
+        if (!isValidWiiNumber(wiiCode)) return redirectWithError("That doesn't look like a valid Wii Number. Please check it for typos.");
         if (wiiOptOuts.has(wiiCode)) return redirectWithError('That Wii has opted out of receiving PictoCards.');
         if (!(cardText || '').trim()) return redirectWithError('A message is required for Wii mail.');
       } else if (!recipientEmail && !recipientDiscord) {

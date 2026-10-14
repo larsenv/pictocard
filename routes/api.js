@@ -342,6 +342,7 @@ async function sendWii(req, res, draft, body) {
   if (!wc24.wc24Config()) throw new ApiError(503, "Wii delivery isn't set up yet. Please check back soon.");
   const recipient = digits(body.recipientWii);
   if (!wc24.isFriendCode(recipient)) throw new ApiError(422, 'Enter the 16-digit Wii Number.');
+  if (!wc24.isValidWiiNumber(recipient)) throw new ApiError(422, "That doesn't look like a valid Wii Number. Please check it for typos.");
   if (!draft.cardText.trim()) throw new ApiError(422, 'A message is required for Wii mail.');
   if (draft.wiiAttach === 'image' && !draft.image) throw new ApiError(422, 'Please choose a picture to attach.');
   if (draft.wiiAttach === 'card' && !draft.image) {
@@ -408,6 +409,7 @@ router.post('/wii-friend', limiter(WINDOW, 5, 'Too many requests. Please wait a 
     if (!wc24.wc24Config()) throw new ApiError(503, "Wii delivery isn't set up yet. Please check back soon.");
     const code = digits(req.body && req.body.wiiNumber);
     if (!wc24.isFriendCode(code)) throw new ApiError(422, 'Enter your 16-digit Wii Number.');
+    if (!wc24.isValidWiiNumber(code)) throw new ApiError(422, "That doesn't look like a valid Wii Number. Please check it for typos.");
     requirePow(req, 'friend');
     try {
       const result = await wc24.requestFriend(code);
