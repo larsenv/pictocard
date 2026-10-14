@@ -33,8 +33,11 @@ if (!fs.existsSync(viewsPath)) {
   console.error(`[Fatal] Views directory not found at: ${viewsPath}`);
 }
 
-// Trust reverse-proxy headers (needed for req.ip behind nginx/Caddy)
-app.set('trust proxy', 1);
+// Trust reverse-proxy headers so req.ip is the visitor. Production runs behind
+// Cloudflare and then Caddy, so two hops: with one, req.ip is whichever
+// Cloudflare edge forwarded the request, which changes between requests and
+// breaks per-IP rate limits and the API's IP-bound anti-spam challenges.
+app.set('trust proxy', config.trustProxy ?? 2);
 
 app.disable('x-powered-by');
 

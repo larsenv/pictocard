@@ -1,5 +1,7 @@
 module.exports = {
   port: 3000,
+  // Reverse proxies in front of the app (Cloudflare and Caddy in production)
+  trustProxy: 2,
   smtp: {
     host: 'smtp.example.com',
     port: 587,
