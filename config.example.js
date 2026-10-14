@@ -47,5 +47,18 @@ module.exports = {
   // Set this to a long random string. If left empty a plain SHA-512 is used.
   // Changing this value after people have already opted out will invalidate
   // all existing opt-out entries.
-  optoutHashSecret: ''
+  optoutHashSecret: '',
+
+  // JSON API used by the PictoCard Wii homebrew client (/api/v1).
+  // Sends are guarded by proof-of-work challenges instead of a captcha:
+  // powDifficulty is the number of leading zero bits a client must find
+  // (each extra bit doubles the work; 18 takes a Wii a second or two).
+  // IPs that keep sending get up to 4 more bits.
+  // secret signs the challenges; it defaults to one derived from sessionSecret.
+  api: {
+    enabled: true,
+    powDifficulty: 18,
+    minClientVersion: '1.0.0',
+    secret: ''
+  }
 };

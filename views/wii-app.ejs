@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('partials/head', {
+      metaDescription: 'PictoCard for Wii is a free Homebrew Channel app for sending PictoCards from your Wii: pick a photo from your SD card, add a Mii, and send it by email or to a Wii Message Board.',
+      ogTitle: 'PictoCard for Wii - send cards from your Wii',
+      ogDescription: 'A free Homebrew Channel app for sending PictoCards from your Wii',
+      ogUrl: domain + '/wii-app',
+      canonicalUrl: domain + '/wii-app'
+    }) %>
+  </head>
+  <body>
+    <%- include('partials/header') %>
+
+    <main class="container wii-app">
+      <section class="hero">
+        <h1>PictoCard for Wii</h1>
+        <p class="hero-sub">
+          Send PictoCards right from your Wii. Pick a photo from your SD card, add a Mii from your
+          Wii, and send it by email or to a Wii Message Board with WiiLink.
+        </p>
+      </section>
+
+      <div class="wii-app-layout">
+        <section class="form-group" aria-labelledby="downloadHeading">
+          <h2 class="panel-title" id="downloadHeading">
+            <span class="panel-title-label"><%- include('partials/step', { number: '01' }) %>Download</span>
+          </h2>
+          <div class="group-content">
+            <p class="wii-app-lead">
+              A free app for the Homebrew Channel. It works with every controller you can connect to a
+              Wii, and with a USB keyboard.
+            </p>
+            <div class="wii-app-actions">
+              <a class="btn btn-primary btn-lg" href="<%= downloadUrl %>">Download PictoCard for Wii &darr;</a>
+              <a class="btn btn-secondary" href="<%= sourceUrl %>">Source code on GitHub</a>
+            </div>
+            <p class="field-hint">
+              Version <%= version %> &middot; Homebrew Channel package (.zip) &middot;
+              <a href="<%= releasesUrl %>">All releases</a>
+            </p>
+          </div>
+        </section>
+
+        <figure class="wii-app-shot">
+          <img src="/images/wii-app/compose.png" width="852" height="480"
+               alt="PictoCard for Wii showing the card editor with a live preview" />
+          <figcaption>The card editor on a TV, with the same live preview as the website.</figcaption>
+        </figure>
+      </div>
+
+      <section class="form-group" aria-labelledby="installHeading">
+        <h2 class="panel-title" id="installHeading">
+          <span class="panel-title-label"><%- include('partials/step', { number: '02' }) %>Install</span>
+        </h2>
+        <div class="group-content">
+          <ol class="wii-app-steps">
+            <li>Extract <code>PictoCard-Wii.zip</code> to the root of your SD card or USB drive. It adds <code>apps/PictoCard</code>.</li>
+            <li>Put the SD card or USB drive in your Wii and open the Homebrew Channel.</li>
+            <li>Choose <strong>PictoCard</strong>. Your Wii needs to be connected to the Internet.</li>
+            <li>To receive letters on a Wii Message Board, that Wii adds PictoCard as a friend once. You can do that from the app or on the <a href="/wii">Add PictoCard to your Wii</a> page.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="form-group" aria-labelledby="featuresHeading">
+        <h2 class="panel-title" id="featuresHeading">
+          <span class="panel-title-label"><%- include('partials/step', { number: '03' }) %>What it can do</span>
+        </h2>
+        <div class="group-content wii-app-features">
+          <div>
+            <h3>Cards and letters</h3>
+            <ul>
+              <li>Email a PictoCard, or send a letter to any Wii Message Board.</li>
+              <li>Use any photo on your SD card or USB drive: JPEG, PNG, WebP, GIF or BMP.</li>
+              <li>Add a Mii from your Wii's Mii Channel, with an expression.</li>
+              <li>Every font, text color, background and Wii letterhead from the website.</li>
+              <li>Live preview and a final review before anything is sent.</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Controllers</h3>
+            <ul>
+              <li>Wii Remote, with the pointer, Nunchuk or Classic Controller</li>
+              <li>GameCube controller</li>
+              <li>Wii U GamePad and Wii U Pro Controller (on Wii U)</li>
+              <li>DualShock 3 over USB</li>
+              <li>USB keyboard for typing, or the on-screen keyboard</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <figure class="wii-app-shot wii-app-shot-wide">
+        <img src="/images/wii-app/review.png" width="852" height="480"
+             alt="PictoCard for Wii showing a Wii Message Board letter before it is sent" />
+        <figcaption>Review a Wii Message Board letter before sending it.</figcaption>
+      </figure>
+    </main>
+
+    <%- include('partials/footer') %>
+  </body>
+</html>
