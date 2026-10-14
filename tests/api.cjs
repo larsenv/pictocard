@@ -133,3 +133,21 @@ test('invalid input is reported as JSON', async (t) => {
   res = await call('/preview', { ...card, image: '***' });
   assert.equal(res.status, 422);
 });
+
+test('a doodle card is the drawing alone, without the PictoCard layout', async (t) => {
+  const sharp = require('sharp');
+  const { call } = await fixture(t);
+  const doodle = (await sharp({ create: { width: 300, height: 200, channels: 4, background: '#ff0000' } }).png().toBuffer()).toString('base64');
+  const size = async (body) => {
+    const { status, body: result } = await call('/preview', body);
+    assert.equal(status, 200);
+    return sharp(Buffer.from(result.card, 'base64')).metadata();
+  };
+  const plain = await size({ ...card, image: doodle, cardType: 'doodle' });
+  assert.deepEqual([plain.width, plain.height], [300, 200]);
+  const full = await size({ ...card, image: doodle });
+  assert.ok(full.width > 300);
+  const { status, body } = await call('/send', { ...card, image: undefined, cardType: 'doodle' });
+  assert.equal(status, 422);
+  assert.match(body.error, /draw a doodle/);
+});

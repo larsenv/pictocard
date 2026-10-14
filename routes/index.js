@@ -132,6 +132,13 @@ function generateCode() {
 // code is invalidated and a new one must be requested.
 const MAX_CODE_ATTEMPTS = 5;
 
+// "doodle": the card is the drawing alone; "card": the full PictoCard layout.
+function cardTypeOf(req) {
+  const submitted = req.body && req.body.cardType;
+  if (submitted === 'doodle' || submitted === 'card') return submitted;
+  return (req.session.pending || {}).cardType === 'doodle' ? 'doodle' : 'card';
+}
+
 function formDraft(req) {
   const body = req.body || {};
   const text = (key) => typeof body[key] === 'string' ? body[key] : '';
@@ -149,6 +156,7 @@ function formDraft(req) {
     senderName: text('senderName').trim(),
     senderEmail: method === 'email' ? text('senderEmail').trim() || null : null,
     cardText: text('cardText').replace(/\r\n?/g, '\n'),
+    cardType: cardTypeOf(req),
     fontFamily: text('fontFamily') || previous.fontFamily || 'rodinntlg',
     textColor: text('textColor') || (!submittedBackground && previous.textColor) || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
     cardBackground,
@@ -486,6 +494,7 @@ router.post('/card-preview', rateLimit({
     } else if (!wii || attach === 'card') {
       const source = await readImage(req, 'cardImage', 'originalImage', req.body.presetImage);
       buffer = await generateCard({
+        doodle: draft.cardType === 'doodle' && !!source,
         imageBuffer: source || PREVIEW_PLACEHOLDER,
         text: wii ? draft.wiiCardText.trim() || draft.cardText : draft.cardText,
         font: draft.fontFamily,
@@ -559,10 +568,11 @@ async function createWiiPending(req, res, o) {
     jpeg = await wiiMail.toBaselineJpeg(picture);
   } else if (attach === 'card') {
     imageBuffer = await readImage(req, 'cardImage', 'originalImage', o.presetImage);
-    if (!imageBuffer) return redirectWithError('Please upload an image or select a preset for the PictoCard.');
+    if (!imageBuffer) return redirectWithError(o.cardType === 'doodle' ? 'Please draw a doodle for your card.' : 'Please upload an image or select a preset for the PictoCard.');
     // Mii on the PictoCard: 3DS/Wii U QR code image or raw Mii data, as in the email flow
     cardMii = await readCardMii(req);
     const card = await generateCard({
+      doodle: o.cardType === 'doodle',
       imageBuffer,
       // Own card text if given, otherwise the letter's message
       text: (o.wiiCardText || '').trim() || o.cardText || '',
@@ -589,6 +599,7 @@ async function createWiiPending(req, res, o) {
     recipientDiscord: null,
     recipientWii: o.wiiCode,
     cardText: o.cardText || '',
+    cardType: o.cardType === 'doodle' ? 'doodle' : 'card',
     fontFamily: o.fontFamily || 'rodinntlg',
     textColor: o.textColor || (o.cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
     cardBackground: o.cardBackground || 'light',
@@ -658,6 +669,7 @@ router.post(
       const usingDiscord = deliveryMethod === 'discord';
       const usingWii = deliveryMethod === 'wii';
       const cardBackground = formDraft(req).cardBackground;
+      const cardType = cardTypeOf(req);
       const fontFamily = submittedFont || req.session.pending?.fontFamily || 'rodinntlg';
       const textColor = submittedColor || (!submittedBackground && req.session.pending?.textColor) ||
         (cardBackground === 'dark' ? '#f5f5f7' : '#111111');
@@ -763,6 +775,7 @@ router.post(
           textColor,
           cardBackground,
           miiExpression: miiExpressionOf(req),
+          cardType,
           presetImage,
           wiiAttach,
           letterhead
@@ -772,7 +785,7 @@ router.post(
       const imageBuffer = await readImage(req, 'cardImage', 'originalImage', presetImage);
 
       if (!imageBuffer) {
-        return redirectWithError('Please upload an image or select a preset.');
+        return redirectWithError(cardType === 'doodle' ? 'Please draw a doodle for your card.' : 'Please upload an image or select a preset.');
       }
 
       if (recipientEmail && emailOptOuts.has(hashEmail(recipientEmail))) {
@@ -785,6 +798,7 @@ router.post(
 
       // Generate the card before showing the preview (before verification)
       const cardBuffer = await generateCard({
+        doodle: cardType === 'doodle',
         imageBuffer,
         text: cardText,
         font: fontFamily || 'rodinntlg',
@@ -807,6 +821,7 @@ router.post(
         recipientEmail: recipientEmail || null,
         recipientDiscord: recipientDiscord || null,
         cardText,
+        cardType,
         fontFamily: fontFamily || 'rodinntlg',
         textColor: textColor || (cardBackground === 'dark' ? '#f5f5f7' : '#111111'),
         miiData: miiData ? miiData.toString('base64') : null,

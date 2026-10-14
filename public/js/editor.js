@@ -14,7 +14,7 @@
   const toggle = document.getElementById('openPreview');
   const close = document.getElementById('closePreview');
   const fields = new Set(['cardImage', 'presetImage', 'cardText', 'fontFamily', 'textColor',
-    'cardMiiData', 'wiiMii', 'senderName', 'wiiImage', 'wiiCardText', 'letterhead', 'wiiAttach', 'cardBackground', 'miiExpression']);
+    'cardMiiData', 'wiiMii', 'senderName', 'wiiImage', 'wiiCardText', 'letterhead', 'wiiAttach', 'cardType', 'cardBackground', 'miiExpression']);
   let timer;
   let revision = 0;
   let running = false;

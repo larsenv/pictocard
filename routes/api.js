@@ -145,6 +145,7 @@ async function readDraft(body) {
     textColor: color,
     background,
     miiExpression: EXPRESSIONS.includes(body.miiExpression) ? body.miiExpression : 'normal',
+    cardType: body.cardType === 'doodle' ? 'doodle' : 'card',
     wiiAttach: ['image', 'card'].includes(body.wiiAttach) ? body.wiiAttach : 'none',
     letterhead,
     image: await readImage(body.image),
@@ -156,6 +157,7 @@ async function readDraft(body) {
 function renderCard(draft, { placeholder = false, signed = false } = {}) {
   const wii = draft.method === 'wii';
   return generateCard({
+    doodle: draft.cardType === 'doodle' && !!draft.image,
     imageBuffer: draft.image || (placeholder ? PLACEHOLDER : null),
     text: wii ? draft.wiiCardText.trim() || draft.cardText : draft.cardText,
     font: draft.font,
@@ -238,6 +240,7 @@ router.get('/meta', limiter(60_000, 30, 'Too many requests. Please wait a minute
     wiiEnabled: !!cfg,
     pictocardWiiNumber: cfg ? cfg.sender : null,
     maxTextLength: MAX_TEXT,
+    cardTypes: ['card', 'doodle'],
     maxImageBytes: MAX_IMAGE_BYTES,
     fonts: FONTS.map((f) => ({ id: f.family, name: f.name })),
     letterheads: wiiMail.letterheadGroups().flatMap((g) => g.items.map((l) => ({ id: l.id, name: l.name, group: g.group }))),
@@ -311,7 +314,9 @@ router.post('/send', sendIpLimiter, sendRecipientLimiter, senderLimiter, renderW
     if (!EMAIL_RE.test(senderEmail) || senderEmail.length > 254) {
       throw new ApiError(422, 'A valid sender email is required for verification.');
     }
-    if (!draft.image) throw new ApiError(422, 'Please choose a picture for your card.');
+    if (!draft.image) {
+      throw new ApiError(422, draft.cardType === 'doodle' ? 'Please draw a doodle for your card.' : 'Please choose a picture for your card.');
+    }
     requirePow(req, 'send');
     if (emailOptOuts.has(hashEmail(recipientEmail))) {
       throw new ApiError(422, 'That recipient has opted out of receiving PictoCards.');

@@ -17,6 +17,9 @@ test('a doodle can be drawn and used as the card picture', async ({ page }) => {
   await page.fill('#recipientEmail', 'friend@example.com');
   await page.fill('#cardText', 'Hello there');
 
+  await page.getByLabel(/Doodle \(your drawing is the card\)/).check();
+  await expect(page.locator('#fontRow')).toBeHidden();
+  await expect(page.locator('#choosePicture')).toBeHidden();
   await page.getByRole('button', { name: 'Draw a doodle' }).click();
   await expect(page.locator('#doodleDialog')).toBeVisible();
   await page.locator('#doodleColors .doodle-swatch').nth(5).click(); // red
@@ -46,7 +49,9 @@ test('a doodle can be drawn and used as the card picture', async ({ page }) => {
   await expect(page).toHaveURL(/\/preview$/);
   const preview = page.getByAltText('Card Preview');
   await expect(preview).toBeVisible();
-  expect(await preview.evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
+  // the card is the 600x350 drawing itself (halved for the email JPEG), not a PictoCard layout
+  const [w, h] = await preview.evaluate((img) => [img.naturalWidth, img.naturalHeight]);
+  expect(w / h).toBeCloseTo(600 / 350, 1);
   expect(errors).toEqual([]);
 });
 

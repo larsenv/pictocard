@@ -305,6 +305,15 @@
             <span class="panel-title-label"><%- include('partials/step', { number: '02' }) %>Your picture</span>
           </h2>
           <div class="group-content">
+            <div class="field card-type-field" id="cardTypeField">
+              <span class="field-label">Card style</span>
+              <div class="radio-row">
+                <label><input type="radio" name="cardType" value="card"
+                  <%= pending && pending.cardType === 'doodle' ? '' : 'checked' %> /> PictoCard (picture and message)</label>
+                <label><input type="radio" name="cardType" value="doodle"
+                  <%= pending && pending.cardType === 'doodle' ? 'checked' : '' %> /> Doodle (your drawing is the card)</label>
+              </div>
+            </div>
             <div class="picture-upload">
               <img id="pictureThumbnail" alt="Selected picture" hidden />
               <div class="picture-upload-controls">
@@ -312,15 +321,15 @@
                 <input type="file" id="cardImage" name="cardImage"
                   accept="image/jpeg,image/png,image/gif,image/webp" hidden />
                 <strong id="pictureFileName"><%= pending && pending.originalImage ? 'Current picture' : 'Choose a picture' %></strong>
-                <p class="field-hint">JPEG, PNG, GIF or WebP - max 10 MB.</p>
+                <p class="field-hint" data-photo-only>JPEG, PNG, GIF or WebP - max 10 MB.</p>
                 <div class="picture-upload-actions">
-                  <button type="button" class="btn btn-secondary" id="choosePicture"><%= pending && pending.originalImage ? 'Change picture' : 'Upload picture' %></button>
+                  <button type="button" class="btn btn-secondary" id="choosePicture" data-photo-only><%= pending && pending.originalImage ? 'Change picture' : 'Upload picture' %></button>
                   <button type="button" class="btn btn-secondary" data-doodle-target="cardImage">Draw a doodle</button>
                 </div>
               </div>
             </div>
 
-            <div class="field image-url-field">
+            <div class="field image-url-field" data-photo-only>
               <label for="imageUrl">Or import from a link</label>
               <div class="image-url-row">
                 <input type="url" id="imageUrl" inputmode="url" autocomplete="off"
@@ -331,7 +340,7 @@
             </div>
 
             <% if (presets && presets.length > 0) { %>
-            <div class="field">
+            <div class="field" data-photo-only>
               <details class="preset-details">
                 <summary>Or choose a preset</summary>
                 <div class="preset-gallery">
@@ -356,7 +365,7 @@
           <div class="group-content">
             <div class="field">
               <label for="cardText"
-                >Message <span class="char-counter" id="charCounter">0 / 500</span></label
+                ><span id="messageLabel">Message</span> <span class="char-counter" id="charCounter">0 / 500</span></label
               >
               <textarea
                 id="cardText"
@@ -523,16 +532,18 @@
         const wii = document.getElementById('deliveryMethod').value === 'wii';
         const attach = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
         const showCard = !wii || attach === 'card';
+        const doodle = showCard && (document.querySelector('input[name="cardType"]:checked') || {}).value === 'doodle';
+        const showStyle = showCard && !doodle;
         const backgroundGroup = document.getElementById('cardBackgroundGroup');
-        backgroundGroup.style.display = showCard ? '' : 'none';
+        backgroundGroup.style.display = showStyle ? '' : 'none';
         backgroundGroup.querySelectorAll('input').forEach((field) => { field.disabled = false; });
         const imageGroup = document.getElementById('cardImageGroup');
         const fontRow = document.getElementById('fontRow');
         if (imageGroup) imageGroup.style.display = showCard ? '' : 'none';
-        if (fontRow) fontRow.style.display = showCard ? '' : 'none';
+        if (fontRow) fontRow.style.display = showStyle ? '' : 'none';
         // The Mii File extra is the Mii drawn on a PictoCard (separate from the Mii Face)
         const extras = document.getElementById('extrasGroup');
-        if (extras) extras.style.display = showCard ? '' : 'none';
+        if (extras) extras.style.display = showStyle ? '' : 'none';
         const imgField = document.getElementById('wiiImageField');
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
@@ -541,6 +552,23 @@
           if (group) group.querySelectorAll('input, select, textarea').forEach((field) => {
             field.disabled = !showCard;
           });
+        }
+        if (extras) extras.querySelectorAll('input, select, textarea').forEach((field) => {
+          field.disabled = !showStyle;
+        });
+        for (const el of document.querySelectorAll('[data-photo-only]')) el.hidden = doodle;
+        const messageLabel = document.getElementById('messageLabel');
+        if (messageLabel) messageLabel.textContent = doodle ? 'Message (optional, sent with your doodle)' : 'Message';
+        const fitHint = document.getElementById('messageFitHint');
+        if (fitHint) fitHint.hidden = doodle;
+        const doodleButton = document.querySelector('[data-doodle-target="cardImage"]');
+        if (doodleButton) {
+          doodleButton.classList.toggle('btn-primary', doodle);
+          doodleButton.classList.toggle('btn-secondary', !doodle);
+        }
+        const pictureName = document.getElementById('pictureFileName');
+        if (pictureName && ['Choose a picture', 'Draw your doodle'].includes(pictureName.textContent)) {
+          pictureName.textContent = doodle ? 'Draw your doodle' : 'Choose a picture';
         }
         if (imgField) imgField.querySelector('input').disabled = !wii || attach !== 'image';
         if (cardTextField) cardTextField.querySelector('textarea').disabled = !wii || attach !== 'card';
@@ -558,7 +586,7 @@
           if (nameInput) nameInput.required = false;
         }
       }
-      document.querySelectorAll('input[name="wiiAttach"]').forEach((r) => {
+      document.querySelectorAll('input[name="wiiAttach"], input[name="cardType"]').forEach((r) => {
         r.addEventListener('change', applyWiiMode);
       });
 

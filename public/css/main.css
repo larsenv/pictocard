@@ -1251,3 +1251,6 @@ input[type='url']:focus {
   border: 1px solid var(--text); background: #fff; touch-action: none; cursor: crosshair;
 }
 .doodle-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+[data-photo-only][hidden] { display: none !important; }
+#cardTypeField { margin-bottom: 12px; }
