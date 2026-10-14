@@ -337,6 +337,16 @@ router.post('/letterhead-sheet', limiter(60_000, 10, 'Too many requests. Please 
   res.json(await letterheadSheet(w, h, cols));
 }));
 
+// ── POST /api/v1/letterhead-arc ───────────────────────────────────────────────
+// One letterhead's .arc, for letters the Wii app sends through the Wii's own
+// outbox (letters sent by the server attach it themselves).
+router.post('/letterhead-arc', limiter(60_000, 30, 'Too many requests. Please wait a minute.'), handle(async (req, res) => {
+  const id = String((req.body && req.body.id) || '');
+  const arc = wiiMail.findLetterhead(id) ? wiiMail.readLetterheadArc(id) : null;
+  if (!arc) throw new ApiError(404, 'Unknown letterhead.');
+  res.json({ id, arc: arc.toString('base64') });
+}));
+
 // ── POST /api/v1/send ─────────────────────────────────────────────────────────
 const sendIpLimiter = limiter(WINDOW, 10, 'Too many attempts. Please wait a few minutes and try again.');
 const recipientKey = (req) => {
