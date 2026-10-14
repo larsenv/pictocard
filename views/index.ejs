@@ -200,7 +200,8 @@
                 <div class="radio-row">
                   <label><input type="radio" name="wiiAttach" value="none" <%= (!pending || !pending.wiiAttach || pending.wiiAttach === 'none') ? 'checked' : '' %> /> None</label>
                   <label><input type="radio" name="wiiAttach" value="image" <%= pending && pending.wiiAttach === 'image' ? 'checked' : '' %> /> Picture</label>
-                  <label><input type="radio" name="wiiAttach" value="card" <%= pending && pending.wiiAttach === 'card' ? 'checked' : '' %> /> PictoCard</label>
+                  <label><input type="radio" name="wiiAttach" value="card" <%= pending && pending.wiiAttach === 'card' && pending.cardType !== 'doodle' ? 'checked' : '' %> /> PictoCard</label>
+                  <label><input type="radio" name="wiiAttach" value="doodle" <%= pending && pending.wiiAttach === 'card' && pending.cardType === 'doodle' ? 'checked' : '' %> /> Doodle</label>
                 </div>
                 <div id="wiiImageField" style="display: none">
                   <input
@@ -537,7 +538,15 @@
       // Wii tab: show only the fields that apply
       function applyWiiMode() {
         const wii = document.getElementById('deliveryMethod').value === 'wii';
-        const attach = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
+        const attachChoice = (document.querySelector('input[name="wiiAttach"]:checked') || {}).value;
+        // the Wii tab's Doodle attachment is a PictoCard in the doodle style
+        const attach = attachChoice === 'doodle' ? 'card' : attachChoice;
+        const typeField = document.getElementById('cardTypeField');
+        if (typeField) typeField.style.display = wii ? 'none' : '';
+        if (wii && attach === 'card') {
+          const style = document.querySelector(`input[name="cardType"][value="${attachChoice === 'doodle' ? 'doodle' : 'card'}"]`);
+          if (style) style.checked = true;
+        }
         const showCard = !wii || attach === 'card';
         const doodle = showCard && (document.querySelector('input[name="cardType"]:checked') || {}).value === 'doodle';
         const showStyle = showCard && !doodle;
@@ -554,7 +563,7 @@
         const imgField = document.getElementById('wiiImageField');
         const cardTextField = document.getElementById('wiiCardTextField');
         if (imgField) imgField.style.display = attach === 'image' ? '' : 'none';
-        if (cardTextField) cardTextField.style.display = attach === 'card' ? '' : 'none';
+        if (cardTextField) cardTextField.style.display = attach === 'card' && attachChoice !== 'doodle' ? '' : 'none';
         for (const group of [imageGroup, extras]) {
           if (group) group.querySelectorAll('input, select, textarea').forEach((field) => {
             field.disabled = !showCard;
@@ -578,7 +587,7 @@
           pictureName.textContent = doodle ? 'Draw your doodle' : 'Choose a picture';
         }
         if (imgField) imgField.querySelector('input').disabled = !wii || attach !== 'image';
-        if (cardTextField) cardTextField.querySelector('textarea').disabled = !wii || attach !== 'card';
+        if (cardTextField) cardTextField.querySelector('textarea').disabled = !wii || attach !== 'card' || attachChoice === 'doodle';
         const text = document.getElementById('cardText');
         if (text) text.required = wii;
         const wiiNum = document.getElementById('recipientWii');

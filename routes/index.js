@@ -132,6 +132,14 @@ function generateCode() {
 // code is invalidated and a new one must be requested.
 const MAX_CODE_ATTEMPTS = 5;
 
+// The Wii tab's "Doodle" attachment is a PictoCard in the doodle style.
+function normalizeWiiAttach(req) {
+  if (req.body && req.body.wiiAttach === 'doodle') {
+    req.body.wiiAttach = 'card';
+    req.body.cardType = 'doodle';
+  }
+}
+
 // "doodle": the card is the drawing alone; "card": the full PictoCard layout.
 function cardTypeOf(req) {
   const submitted = req.body && req.body.cardType;
@@ -476,6 +484,7 @@ router.post('/card-preview', rateLimit({
   });
 }, async (req, res) => {
   if (!startRender(req, res)) return;
+  normalizeWiiAttach(req);
   res.set('Cache-Control', 'no-store');
   try {
     const draft = formDraft(req);
@@ -635,6 +644,7 @@ router.post(
     uploadFields(req, res, (err) => {
       validateCsrf(req, res, () => {
         if (!err) return next();
+        normalizeWiiAttach(req);
         req.session.pending = formDraft(req);
         if (!(err instanceof multer.MulterError)) return next(err);
         req.session.formError = err.code === 'LIMIT_UPLOAD_BYTES' ? err.message : err.code === 'LIMIT_FILE_SIZE'
@@ -646,6 +656,7 @@ router.post(
   },
   async (req, res) => {
     if (!startRender(req, res)) return;
+    normalizeWiiAttach(req);
     try {
       await preserveDraftAssets(req);
       const {
