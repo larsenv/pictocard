@@ -1,6 +1,6 @@
 'use strict';
 
-// Builds the two Nintendo Channel letterheads as LetterForm .arc archives from
+// Builds the Nintendo Channel letterhead with the Wii logo as LetterForm .arc archives from
 // scripts/assets/nintendo-channel-sheet.png (letter artwork + envelope icon pairs),
 // with the channel's sound.bns (scripts/assets/sound.bns) in the archive root.
 //
@@ -35,10 +35,6 @@ const THUMB = [144, 96];
 
 // Crops from the sheet: [left, top, width, height] and the backdrop colour to key out.
 const LETTERHEADS = [
-  {
-    id: 'nintendo-channel-1', name: 'Nintendo Channel - 1',
-    letter: [8, 7, 312, 228], env: [326, 7, 89, 59], key: [0, 0, 0]
-  },
   {
     id: 'nintendo-channel-2', name: 'Nintendo Channel - 2',
     letter: [1, 240, 316, 232], env: [318, 240, 88, 58], key: [4, 126, 131]
