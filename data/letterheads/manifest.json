@@ -135,6 +135,16 @@
     "name": "Kirby's Epic Yarn"
   },
   {
+    "id": "letterbomb",
+    "group": "LetterBomb",
+    "name": "LetterBomb"
+  },
+  {
+    "id": "letterbomb-pride",
+    "group": "LetterBomb",
+    "name": "LetterBomb - Pride"
+  },
+  {
     "id": "mario-kart-wii-normal-international",
     "group": "Mario Kart Wii",
     "name": "Mario Kart Wii - Normal - International"
