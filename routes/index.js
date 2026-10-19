@@ -1164,17 +1164,20 @@ router.post('/send', async (req, res) => {
 });
 
 // ── GET /wii-app ──────────────────────────────────────────────────────────────
-// The Homebrew Channel app (github.com/larsenv/PictoCard-Wii). Downloads come
+// The Wii, Wii U and 3DS apps (github.com/larsenv/PictoCard-Client). Downloads come
 // from the repository's rolling "latest" release, which its CI publishes.
 router.get('/wii-app', (_req, res) => {
   const app = config.wiiApp || {};
-  const repo = app.repo || 'https://github.com/larsenv/PictoCard-Wii';
+  const repo = app.repo || 'https://github.com/larsenv/PictoCard-Client';
   res.render('wii-app', {
     domain: config.domain,
     version: app.version || '1.0.0',
     sourceUrl: repo,
     releasesUrl: `${repo}/releases`,
-    downloadUrl: app.downloadUrl || `${repo}/releases/latest/download/PictoCard-Wii.zip`
+    downloadUrl: app.downloadUrl || `${repo}/releases/latest/download/PictoCard-Wii.zip`,
+    downloadWiiUUrl: `${repo}/releases/latest/download/PictoCard-WiiU.zip`,
+    download3dsUrl: `${repo}/releases/latest/download/PictoCard-3DS.zip`,
+    downloadCiaUrl: `${repo}/releases/latest/download/PictoCard.cia`
   });
 });
 

@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <%- include('partials/head', {
-      metaDescription: 'PictoCard for Wii is a free Homebrew Channel app for sending PictoCards from your Wii: pick a photo from your SD card, add a Mii, and send it by email or to a Wii Message Board.',
-      ogTitle: 'PictoCard for Wii - Send Cards from Your Wii',
-      ogDescription: 'A free Homebrew Channel app for sending PictoCards from your Wii',
+      metaDescription: 'The PictoCard app is free homebrew for the Wii, Wii U and 3DS for sending PictoCards: pick a photo from your SD card, add a Mii, and send it by email or to a Wii Message Board.',
+      ogTitle: 'PictoCard App - Send Cards from Your Wii, Wii U or 3DS',
+      ogDescription: 'A free homebrew app for sending PictoCards from your Wii, Wii U or 3DS',
       ogUrl: domain + '/wii-app',
       canonicalUrl: domain + '/wii-app'
     }) %>
@@ -14,9 +14,9 @@
 
     <main class="container wii-app">
       <section class="hero">
-        <h1>PictoCard for Wii</h1>
+        <h1>PictoCard App</h1>
         <p class="hero-sub">
-          Send PictoCards right from your Wii. Pick a photo from your SD card, add a Mii from your
+          For the Wii, Wii U and 3DS. Send PictoCards right from your console. Pick a photo from your SD card, add a Mii from your
           Wii, and send it by email or to a Wii Message Board with WiiLink. Wii letters can come
           from PictoCard's Wii Number, as on the website, or from your own.
         </p>
@@ -29,16 +29,18 @@
           </h2>
           <div class="group-content">
             <p class="wii-app-lead">
-              A free app for the Homebrew Channel. It works with every controller you can connect to a
-              Wii, and with a USB keyboard.
+              A free homebrew app for the Wii (Homebrew Channel), Wii U (Aroma) and 3DS (Homebrew Launcher
+              or home menu). On the Wii it works with every controller you can connect, and with a USB keyboard.
             </p>
             <div class="wii-app-actions">
-              <a class="btn btn-primary btn-lg" href="<%= downloadUrl %>">Download PictoCard for Wii &darr;</a>
+              <a class="btn btn-primary btn-lg" href="<%= downloadUrl %>">Download for Wii &darr;</a>
+              <a class="btn btn-primary btn-lg" href="<%= downloadWiiUUrl %>">Download for Wii U &darr;</a>
+              <a class="btn btn-primary btn-lg" href="<%= download3dsUrl %>">Download for 3DS &darr;</a>
               <a class="btn btn-secondary" href="<%= sourceUrl %>">Source code on GitHub</a>
             </div>
             <p class="field-hint">
               Version <%= version %> &middot; Homebrew Channel package (.zip) &middot;
-              <a href="<%= releasesUrl %>">All releases</a>
+              <a href="<%= downloadCiaUrl %>">3DS .cia</a> &middot; <a href="<%= releasesUrl %>">All releases</a>
             </p>
           </div>
         </section>
@@ -46,7 +48,7 @@
         <figure class="wii-app-shot">
           <img src="/images/wii-app/compose.png" width="852" height="480"
                alt="PictoCard for Wii showing the card editor with a live preview" />
-          <figcaption><strong>The Wii app, not the website.</strong> This is the card editor on a TV, with the same live preview as pictocard.net.</figcaption>
+          <figcaption><strong>The app, not the website.</strong> This is the card editor on a TV, with the same live preview as pictocard.net.</figcaption>
         </figure>
       </div>
 
@@ -56,9 +58,10 @@
         </h2>
         <div class="group-content">
           <ol class="wii-app-steps">
-            <li>Extract <code>PictoCard-Wii.zip</code> to the root of your SD card or USB drive. It adds <code>apps/PictoCard</code>.</li>
-            <li>Put the SD card or USB drive in your Wii and open the Homebrew Channel.</li>
-            <li>Choose <strong>PictoCard</strong>. Your Wii needs to be connected to the Internet.</li>
+            <li><strong>Wii:</strong> extract <code>PictoCard-Wii.zip</code> to the root of your SD card or USB drive (it adds <code>apps/PictoCard</code>), then open the Homebrew Channel and choose <strong>PictoCard</strong>.</li>
+            <li><strong>Wii U:</strong> extract <code>PictoCard-WiiU.zip</code> to the root of your SD card (it adds <code>wiiu/apps/PictoCard</code>) and start <strong>PictoCard</strong> from Aroma.</li>
+            <li><strong>3DS:</strong> extract <code>PictoCard-3DS.zip</code> to the root of your SD card (it adds <code>3ds/PictoCard</code>) and start it from the Homebrew Launcher, or install the <code>.cia</code> with FBI to get a home menu icon.</li>
+            <li>Your console needs to be connected to the Internet.</li>
             <li>To receive letters on a Wii Message Board, that Wii adds PictoCard as a friend once. You can do that from the app or on the <a href="/wii">Add PictoCard to your Wii</a> page.</li>
           </ol>
         </div>
@@ -95,7 +98,7 @@
       <figure class="wii-app-shot wii-app-shot-wide">
         <img src="/images/wii-app/review.png" width="852" height="480"
              alt="PictoCard for Wii showing a Wii Message Board letter before it is sent" />
-        <figcaption><strong>The Wii app, not the website.</strong> Review a Wii Message Board letter before sending it.</figcaption>
+        <figcaption><strong>The app, not the website.</strong> Review a Wii Message Board letter before sending it.</figcaption>
       </figure>
     </main>
 

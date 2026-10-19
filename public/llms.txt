@@ -12,10 +12,10 @@
 ## Pages
 - [Send a PictoCard](https://pictocard.net/): the card creator and FAQ
 - [Add PictoCard to your Wii](https://pictocard.net/wii): one-time friend request so a Wii can receive PictoCards
-- [PictoCard for Wii](https://pictocard.net/wii-app): free Homebrew Channel app to send cards by email or to a Wii Message Board from a Wii
+- [PictoCard app](https://pictocard.net/wii-app): free homebrew app for Wii, Wii U and 3DS to send cards by email or to a Wii Message Board
 - [Opt out or opt in](https://pictocard.net/optout): email, Wii and Discord preferences
 - [Privacy](https://pictocard.net/privacy) and [Terms](https://pictocard.net/tos)
 
 ## Source
 - https://github.com/larsenv/pictocard
-- https://github.com/larsenv/PictoCard-Wii (Wii app)
+- https://github.com/larsenv/PictoCard-Client (Wii, Wii U and 3DS apps)
