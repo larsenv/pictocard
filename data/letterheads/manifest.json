@@ -155,6 +155,16 @@
     "name": "Nintendo Channel"
   },
   {
+    "id": "nintendo-channel-1",
+    "group": "Nintendo Channel",
+    "name": "Nintendo Channel - 1"
+  },
+  {
+    "id": "nintendo-channel-2",
+    "group": "Nintendo Channel",
+    "name": "Nintendo Channel - 2"
+  },
+  {
     "id": "relaxuma-minna-de-goyururi-seikatsu",
     "group": "Relaxuma - Minna de Goyururi Seikatsu",
     "name": "Relaxuma - Minna de Goyururi Seikatsu"
@@ -183,6 +193,11 @@
     "id": "toki-tori",
     "group": "Toki Tori",
     "name": "Toki Tori"
+  },
+  {
+    "id": "wii-no-ma",
+    "group": "Wii no Ma",
+    "name": "Wii no Ma"
   },
   {
     "id": "wii-shop-channel-gift",
@@ -235,8 +250,8 @@
     "name": "Wii Speak Channel - Spanish"
   },
   {
-    "id": "wii-no-ma",
-    "group": "Wii no Ma",
-    "name": "Wii no Ma"
+    "id": "wiilink",
+    "group": "WiiLink",
+    "name": "WiiLink"
   }
 ]
