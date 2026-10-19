@@ -57,7 +57,7 @@ async function build(lh) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   for (const lh of LETTERHEADS) {
     await build(lh);
-    const entry = { id: lh.id, group: lh.group, name: lh.name };
+    const entry = { id: lh.id, group: lh.group, name: lh.name, envelope: true };
     const at = manifest.findIndex((m) => m.id === lh.id);
     if (at >= 0) manifest[at] = entry;
     else manifest.push(entry);

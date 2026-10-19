@@ -477,12 +477,14 @@
   {
     "id": "letterbomb",
     "group": "LetterBomb",
-    "name": "LetterBomb"
+    "name": "LetterBomb",
+    "envelope": true
   },
   {
     "id": "letterbomb-pride",
     "group": "LetterBomb",
-    "name": "LetterBomb - Pride"
+    "name": "LetterBomb - Pride",
+    "envelope": true
   },
   {
     "id": "mario-kart-wii-normal-international",
