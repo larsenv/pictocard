@@ -610,5 +610,11 @@
     "id": "wiilink",
     "group": "WiiLink",
     "name": "WiiLink"
+  },
+  {
+    "id": "wilbrand",
+    "group": "Wilbrand",
+    "name": "Wilbrand",
+    "envelope": true
   }
 ]
