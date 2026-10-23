@@ -1192,6 +1192,8 @@ input[type='url']:focus {
   padding: 1px 8px;
   font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
+  flex: none;
 }
 .wii-app-layout {
   display: grid;
