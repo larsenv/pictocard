@@ -460,6 +460,31 @@
     "name": "Harvest Moon - Animal Parade - 4"
   },
   {
+    "id": "hbc-reborn-arcade",
+    "group": "HBC Reborn",
+    "name": "HBC Reborn - Arcade"
+  },
+  {
+    "id": "hbc-reborn-forest",
+    "group": "HBC Reborn",
+    "name": "HBC Reborn - Forest"
+  },
+  {
+    "id": "hbc-reborn-nightsky",
+    "group": "HBC Reborn",
+    "name": "HBC Reborn - Night Sky"
+  },
+  {
+    "id": "hbc-reborn-ocean",
+    "group": "HBC Reborn",
+    "name": "HBC Reborn - Ocean"
+  },
+  {
+    "id": "hbc-reborn-sunset",
+    "group": "HBC Reborn",
+    "name": "HBC Reborn - Sunset"
+  },
+  {
     "id": "kirby-tv-channel-basic",
     "group": "Kirby TV Channel",
     "name": "Kirby TV Channel - Basic"
