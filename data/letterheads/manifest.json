@@ -549,7 +549,8 @@
   {
     "id": "riiconnect24-christmas",
     "group": "RiiConnect24",
-    "name": "RiiConnect24 Christmas"
+    "name": "RiiConnect24 Christmas",
+    "order": 1
   },
   {
     "id": "riiconnect24-normal",
