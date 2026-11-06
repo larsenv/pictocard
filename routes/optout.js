@@ -90,7 +90,8 @@ function show(req, res, view = {}) {
     discordOptedOut: !!(
       req.session &&
       req.session.discordUser &&
-      discordOptOuts.has(req.session.discordUser.username)
+      (discordOptOuts.has(req.session.discordUser.username) ||
+        (req.session.discordUser.id && discordOptOuts.has(String(req.session.discordUser.id))))
     ),
     ...view
   });
@@ -230,7 +231,9 @@ router.post('/discord', (req, res) => {
   if (!user) {
     return show(req, res, { method: 'discord', action, error: 'Log in with Discord first.' });
   }
+  // Usernames can change hands, so the opt-out is also recorded by user ID.
   applyChoice('discord', user.username, action);
+  if (user.id) applyChoice('discord', String(user.id), action);
   res.redirect(`/optout?done=1&doneAction=${action}&doneMethod=discord`);
 });
 

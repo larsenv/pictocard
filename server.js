@@ -6,6 +6,7 @@ const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
 const { rateLimit, csrf } = require('./lib/middleware');
+const { BoundedMemoryStore } = require('./lib/sessionStore');
 
 let config;
 try {
@@ -55,6 +56,14 @@ if (DEFAULT_SECRETS.includes(config.sessionSecret)) {
   console.warn('[Security] sessionSecret is the example value - set a real one before deploying.');
 }
 
+// Without a secret, opted-out email addresses are stored as plain SHA-512
+// hashes, which a leaked data/optouts.json could be matched against. This is a
+// warning rather than an exit: adding a secret later invalidates existing
+// opt-outs, so it is the operator's call when to switch.
+if (!config.optoutHashSecret) {
+  console.warn('[Security] optoutHashSecret is not set - opt-out email hashes are unkeyed. Set it in config.js (existing opt-outs will need to be redone).');
+}
+
 // ── Security headers ─────────────────────────────────────────────────────────
 // Scripts must come from this site (or Turnstile) or carry the per-request nonce.
 app.use((_req, res, next) => {
@@ -98,9 +107,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // ── Sessions (in-memory, no persistent storage) ──────────────────────────────
+// Sessions hold the pending card's images, so the store sweeps expired
+// sessions and caps the memory they can take (see lib/sessionStore.js).
 app.use(
   session({
     secret: config.sessionSecret,
+    store: new BoundedMemoryStore({ maxSessions: 5000, maxBytes: 512 * 1024 * 1024, ttlMs: 30 * 60 * 1000 }),
     resave: false,
     saveUninitialized: false,
     cookie: {

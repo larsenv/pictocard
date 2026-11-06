@@ -304,11 +304,15 @@ router.post('/mii-faces', limiter(60_000, 40, 'Too many Mii previews. Please wai
 
 // ── POST /api/v1/letterhead-sheet ─────────────────────────────────────────────
 // Every letterhead preview as one JPEG grid (in /meta order), so a client can
-// show a gallery with a single request. Sheets are cached per size.
+// show a gallery with a single request. Sheets are cached per size; the cache
+// is capped because the size parameters allow far more combinations than
+// memory could hold, and the oldest entry is dropped when it is full.
+const SHEET_CACHE_MAX = 24;
 const sheetCache = new Map();
 async function letterheadSheet(w, h, cols) {
   const key = `${w}x${h}x${cols}`;
   if (sheetCache.has(key)) return sheetCache.get(key);
+  if (sheetCache.size >= SHEET_CACHE_MAX) sheetCache.delete(sheetCache.keys().next().value);
   const ids = wiiMail.letterheadGroups().flatMap((g) => g.items.map((l) => l.id));
   const rows = Math.max(1, Math.ceil(ids.length / cols));
   const tiles = await Promise.all(ids.map(async (id, i) => {
